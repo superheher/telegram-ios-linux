@@ -1,0 +1,64 @@
+ M submodules/BotPaymentsUI/Sources/BotCheckoutControllerNode.swift
+ M submodules/CloudData/Sources/CloudData.swift
+ M submodules/MetalEngine/Sources/MetalEngine.swift
+ M submodules/TelegramUI/Components/FaceScanScreen/Sources/AgeNet.swift
+ M submodules/TelegramUI/Components/FaceScanScreen/Sources/AgeNetLegacy.swift
+ M submodules/TelegramUI/Components/TabBarComponent/Sources/TabBarComponent.swift
+ M submodules/TelegramUI/Sources/AppDelegate.swift
+ m submodules/TgVoipWebrtc/tgcalls
+ M submodules/UIKitRuntimeUtils/Source/UIKitRuntimeUtils/UIBarButtonItem+Proxy.h
+?? ASTransformLayerNode.o
+?? Telegram/GeneratedPresentationStrings/
+?? Telegram/empty.swift
+?? Xcode_27.2_Release_Candidate.xip
+?? docs/[redacted]-album-edit-handoff.md
+?? docs/[redacted]-album-edit-session2-report.md
+?? docs/linux-build-2026-10-25.md
+?? docs/linux-build-next-session.md
+?? docs/linux-build-research-plan.md
+?? docs/next-session-ui-walk.md
+?? docs/publish-telegram-ios-linux.md
+?? docs/receipts/
+?? docs/tgbuild-sdkfree-snapshot/
+?? docs/ui-gaps.md
+?? submodules/TelegramApi/Generated/
+?? submodules/TelegramCore/FlatSerialization/InstantPageBlock_generated.swift
+?? submodules/TelegramCore/FlatSerialization/InstantPage_generated.swift
+?? submodules/TelegramCore/FlatSerialization/ItemCollectionId_generated.swift
+?? submodules/TelegramCore/FlatSerialization/MediaId_generated.swift
+?? submodules/TelegramCore/FlatSerialization/Media_generated.swift
+?? submodules/TelegramCore/FlatSerialization/MessageId_generated.swift
+?? submodules/TelegramCore/FlatSerialization/Optional_generated.swift
+?? submodules/TelegramCore/FlatSerialization/PartialMediaReference_generated.swift
+?? submodules/TelegramCore/FlatSerialization/PeerAccessRestrictionInfo_generated.swift
+?? submodules/TelegramCore/FlatSerialization/PeerCollectibleColor_generated.swift
+?? submodules/TelegramCore/FlatSerialization/PeerEmojiStatus_generated.swift
+?? submodules/TelegramCore/FlatSerialization/PeerId_generated.swift
+?? submodules/TelegramCore/FlatSerialization/PeerNameColor_generated.swift
+?? submodules/TelegramCore/FlatSerialization/PeerReference_generated.swift
+?? submodules/TelegramCore/FlatSerialization/PixelDimensions_generated.swift
+?? submodules/TelegramCore/FlatSerialization/RichText_generated.swift
+?? submodules/TelegramCore/FlatSerialization/StarsAmount_generated.swift
+?? submodules/TelegramCore/FlatSerialization/StickerPackCollectionInfo_generated.swift
+?? submodules/TelegramCore/FlatSerialization/StickerPackReference_generated.swift
+?? submodules/TelegramCore/FlatSerialization/StoredDeviceContactData_generated.swift
+?? submodules/TelegramCore/FlatSerialization/TelegramChannel_generated.swift
+?? submodules/TelegramCore/FlatSerialization/TelegramChatAdminRights_generated.swift
+?? submodules/TelegramCore/FlatSerialization/TelegramChatBannedRights_generated.swift
+?? submodules/TelegramCore/FlatSerialization/TelegramCommunity_generated.swift
+?? submodules/TelegramCore/FlatSerialization/TelegramGroup_generated.swift
+?? submodules/TelegramCore/FlatSerialization/TelegramMediaFileAttribute_generated.swift
+?? submodules/TelegramCore/FlatSerialization/TelegramMediaFile_generated.swift
+?? submodules/TelegramCore/FlatSerialization/TelegramMediaImageRepresentation_generated.swift
+?? submodules/TelegramCore/FlatSerialization/TelegramMediaImage_generated.swift
+?? submodules/TelegramCore/FlatSerialization/TelegramMediaResource_generated.swift
+?? submodules/TelegramCore/FlatSerialization/TelegramPeerAccessHash_generated.swift
+?? submodules/TelegramCore/FlatSerialization/TelegramPeerUsername_generated.swift
+?? submodules/TelegramCore/FlatSerialization/TelegramUser_generated.swift
+?? submodules/TelegramCore/FlatSerialization/VideoThumbnail_generated.swift
+?? submodules/ffmpeg/Sources/FFMpeg/libdav1d/
+?? submodules/ffmpeg/Sources/FFMpeg/libopus/
+?? submodules/ffmpeg/Sources/FFMpeg/libvpx/
+?? third-party/libjxl/libjxl/BUILD.bazel.upstream
+?? third-party/wallet-engine/Generated/
+?? tools/tgbuild/

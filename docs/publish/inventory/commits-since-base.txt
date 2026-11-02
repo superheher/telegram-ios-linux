@@ -1,0 +1,11 @@
+ff237811244e2d2b0ee002afcb58eb78f6bf40f8 [redacted] Added ability to edit caption of specific album item.
+d530d31d2393525a560d06faf65d8794f935d868 [redacted] Added Add-to-Emoji-Set submenu for custom emoji from foreign packs.
+94cda84b60e695694bc925c006692f1768e3dc49 [redacted] Added Test Server switch and badge to login screen.
+63b8174209301b6808151d4f986c4c56b8c129d4 [redacted] Replaced recursion with loop in list view transaction queue.
+c918b0888ad69d27f26be78de5be42e23b652488 [redacted] Fixed crash in passkey login when phone entry screen was dismissed.
+e150f9e76e9b96182db56f0fabd6e0f6900ee37a [redacted] Added full implementation of Fast Forward.
+cd9463893776f50015c28241e46a69315f719225 [redacted] Added Share Button to media messages from users.
+f545e568aa15782377b47558e16887f90117a89a [redacted] Disabled "Sync Contacts" by default on login.
+7e344fc0a8363970d283a1a99c14d20033f37708 [redacted] Added option to remember last used camera in Video Messages.
+5e7e41f3210c0598aecc52e0387fcd22a09c24a2 [redacted] Added ability to log in by showing QR code.
+d9c068b9848c41a2cd57d857cb26787d1367e5fc [redacted] Added hidden accounts unlocked by per-account code.

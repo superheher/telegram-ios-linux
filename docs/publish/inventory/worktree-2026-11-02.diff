@@ -1,0 +1,351 @@
+diff --git a/submodules/BotPaymentsUI/Sources/BotCheckoutControllerNode.swift b/submodules/BotPaymentsUI/Sources/BotCheckoutControllerNode.swift
+index 6450b18c84..8e3bbeda72 100644
+--- a/submodules/BotPaymentsUI/Sources/BotCheckoutControllerNode.swift
++++ b/submodules/BotPaymentsUI/Sources/BotCheckoutControllerNode.swift
+@@ -1414,7 +1414,12 @@ final class BotCheckoutControllerNode: ItemListControllerNode, PKPaymentAuthoriz
+                             
+                             request.merchantIdentifier = merchantId
+                             request.supportedNetworks = [.visa, .amex, .masterCard]
+-                            request.merchantCapabilities = [.capability3DS]
++                            // `.capability3DS`'s getter is absent from iOS 16.7's
++                            // libswiftPassKit overlay, and this toolchain emits the reference
++                            // strong (link.py's weak-symbol passes can't neutralize a bind into
++                            // the shared cache), so dyld killed the app at launch. The constant
++                            // is PKMerchantCapabilityCapability3DS = 1 << 1 on every iOS.
++                            request.merchantCapabilities = [PKMerchantCapability(rawValue: 1 << 1)]
+                             request.countryCode = countryCode
+                             request.currencyCode = paymentForm.invoice.currency.uppercased()
+ 
+diff --git a/submodules/CloudData/Sources/CloudData.swift b/submodules/CloudData/Sources/CloudData.swift
+index 94b898dcbe..c3866c298a 100644
+--- a/submodules/CloudData/Sources/CloudData.swift
++++ b/submodules/CloudData/Sources/CloudData.swift
+@@ -11,6 +11,22 @@ private enum FetchError {
+ 
+ @available(iOS 10.0, *)
+ private func fetchRawData(prefix: String) -> Signal<Data, FetchError> {
++    #if TGBUILD
++    // CKContainer.default() traps (EXC_BREAKPOINT) without the iCloud entitlement,
++    // which the free-provisioned profile lacks. Return an async .generic error — async
++    // because the upstream `|> restart` chain re-enters synchronously (a synchronous
++    // error stack-overflows).
++    return Signal { subscriber in
++        let queue = Queue.mainQueue()
++        let timer = SwiftSignalKit.Timer(timeout: 0.1, repeat: false, completion: {
++            subscriber.putError(.generic)
++        }, queue: queue)
++        timer.start()
++        return ActionDisposable {
++            timer.invalidate()
++        }
++    }
++    #else
+     return Signal { subscriber in
+         let container = CKContainer.default()
+         let publicDatabase = container.database(with: .public)
+@@ -45,6 +61,7 @@ private func fetchRawData(prefix: String) -> Signal<Data, FetchError> {
+         return ActionDisposable {
+         }
+     }
++    #endif
+ }
+ 
+ @available(iOS 10.0, *)
+diff --git a/submodules/MetalEngine/Sources/MetalEngine.swift b/submodules/MetalEngine/Sources/MetalEngine.swift
+index 20cf349f84..815da54a44 100644
+--- a/submodules/MetalEngine/Sources/MetalEngine.swift
++++ b/submodules/MetalEngine/Sources/MetalEngine.swift
+@@ -797,8 +797,8 @@ public final class MetalEngine {
+             }
+             self.commandQueue = commandQueue
+             
+-            let library: MTLLibrary?
+-            
++            var library: MTLLibrary?
++
+             #if os(iOS)
+             let mainBundle = Bundle(for: Impl.self)
+             guard let path = mainBundle.path(forResource: "MetalEngineMetalSourcesBundle", ofType: "bundle") else {
+@@ -808,6 +808,48 @@ public final class MetalEngine {
+                 return nil
+             }
+             library = try? device.makeDefaultLibrary(bundle: bundle)
++            NSLog("[tgbuild-metal] makeDefaultLibrary(bundle:) = \(library != nil ? "loaded" : "nil (expected on Linux package)")")
++            #if TGBUILD
++            if library == nil {
++                // The Linux package ships the bundle's .metal sources without a compiled
++                // default.metallib: inline #includes and compile at runtime.
++                let metalURLs = ((try? FileManager.default.contentsOfDirectory(at: bundle.bundleURL, includingPropertiesForKeys: nil)) ?? [])
++                    .filter { $0.pathExtension == "metal" }
++                    .sorted { $0.lastPathComponent < $1.lastPathComponent }
++                NSLog("[tgbuild-metal] runtime compile: %d .metal file(s) in bundle", metalURLs.count)
++                if !metalURLs.isEmpty {
++                    var includeCache: [String: String] = [:]
++                    func resolvedSource(_ url: URL) -> String {
++                        let name = url.lastPathComponent
++                        if let cached = includeCache[name] {
++                            return cached
++                        }
++                        var text = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
++                        if let regex = try? NSRegularExpression(pattern: "#include\\s*\"([^\"]+)\"") {
++                            for match in regex.matches(in: text, range: NSRange(text.startIndex..., in: text)).reversed() {
++                                let includeName = (text as NSString).substring(with: match.range(at: 1))
++                                let base = (includeName as NSString).deletingPathExtension
++                                let ext = (includeName as NSString).pathExtension
++                                let includeURL = ext.isEmpty ? bundle.url(forResource: base, withExtension: nil) : bundle.url(forResource: base, withExtension: ext)
++                                if let includeURL = includeURL, let range = Range(match.range, in: text) {
++                                    text.replaceSubrange(range, with: resolvedSource(includeURL))
++                                }
++                            }
++                        }
++                        includeCache[name] = text
++                        return text
++                    }
++                    let combined = metalURLs.map { resolvedSource($0) }.joined(separator: "\n")
++                    NSLog("[tgbuild-metal] runtime compile: %d chars of combined source", combined.count)
++                    do {
++                        library = try device.makeLibrary(source: combined, options: nil)
++                        NSLog("[tgbuild-metal] runtime compile: success")
++                    } catch {
++                        NSLog("[tgbuild-metal] runtime compile FAILED: \(error)")
++                    }
++                }
++            }
++            #endif
+             #else
+             library = try? device.makeDefaultLibrary(bundle: Bundle.module)
+             #endif
+@@ -820,19 +862,23 @@ public final class MetalEngine {
+             self.library = lib
+             
+             guard let vertexFunction = lib.makeFunction(name: "clearVertex") else {
++                NSLog("[tgbuild-metal] clearVertex function missing")
+                 return nil
+             }
+             guard let fragmentFunction = lib.makeFunction(name: "clearFragment") else {
++                NSLog("[tgbuild-metal] clearFragment function missing")
+                 return nil
+             }
+-            
++
+             let pipelineDescriptor = MTLRenderPipelineDescriptor()
+             pipelineDescriptor.vertexFunction = vertexFunction
+             pipelineDescriptor.fragmentFunction = fragmentFunction
+             pipelineDescriptor.colorAttachments[0].pixelFormat = .bgra8Unorm
+             guard let clearPipelineState = pipelineCache.makeRenderPipelineState(descriptor: pipelineDescriptor) else {
++                NSLog("[tgbuild-metal] clear pipeline state failed")
+                 return nil
+             }
++            NSLog("[tgbuild-metal] MetalEngine.Impl initialized ok")
+             self.clearPipelineState = clearPipelineState
+             
+             #if targetEnvironment(simulator)
+diff --git a/submodules/TelegramUI/Components/FaceScanScreen/Sources/AgeNet.swift b/submodules/TelegramUI/Components/FaceScanScreen/Sources/AgeNet.swift
+index 3dd5aefe31..23596bdd76 100644
+--- a/submodules/TelegramUI/Components/FaceScanScreen/Sources/AgeNet.swift
++++ b/submodules/TelegramUI/Components/FaceScanScreen/Sources/AgeNet.swift
+@@ -250,7 +250,14 @@ class AgeNet {
+     */
+     @available(macOS 14.0, iOS 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *)
+     func prediction(input: AgeNetInput, options: MLPredictionOptions = MLPredictionOptions()) async throws -> AgeNetOutput {
+-        let outFeatures = try await model.prediction(from: input, options: options)
++        // The async MLModel overload's symbol is absent from iOS 16's libswiftCoreML and
++        // the launch-time bind halts the app; the sync sibling has existed since iOS 12.
++        // The explicitly-typed sync closure keeps overload resolution away from the async
++        // sibling (an async context would pick it and recurse).
++        let syncPrediction: (AgeNetInput, MLPredictionOptions) throws -> AgeNetOutput = { [model] input, options in
++            AgeNetOutput(features: try model.prediction(from: input, options: options))
++        }
++        let outFeatures = try syncPrediction(input, options)
+         return AgeNetOutput(features: outFeatures)
+     }
+ 
+diff --git a/submodules/TelegramUI/Components/FaceScanScreen/Sources/AgeNetLegacy.swift b/submodules/TelegramUI/Components/FaceScanScreen/Sources/AgeNetLegacy.swift
+index c8bca41180..f14f87ff87 100644
+--- a/submodules/TelegramUI/Components/FaceScanScreen/Sources/AgeNetLegacy.swift
++++ b/submodules/TelegramUI/Components/FaceScanScreen/Sources/AgeNetLegacy.swift
+@@ -263,7 +263,11 @@ class AgeNetLegacy {
+     */
+     @available(macOS 14.0, iOS 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *)
+     func prediction(input: AgeNetLegacyInput, options: MLPredictionOptions = MLPredictionOptions()) async throws -> AgeNetLegacyOutput {
+-        let outFeatures = try await model.prediction(from: input, options: options)
++        // See the note in AgeNet.swift: the async overload's symbol is absent on iOS 16.
++        let syncPrediction: (AgeNetLegacyInput, MLPredictionOptions) throws -> AgeNetLegacyOutput = { [model] input, options in
++            AgeNetLegacyOutput(features: try model.prediction(from: input, options: options))
++        }
++        let outFeatures = try syncPrediction(input, options)
+         return AgeNetLegacyOutput(features: outFeatures)
+     }
+ 
+diff --git a/submodules/TelegramUI/Components/TabBarComponent/Sources/TabBarComponent.swift b/submodules/TelegramUI/Components/TabBarComponent/Sources/TabBarComponent.swift
+index 6124e45999..bb38cb3c52 100644
+--- a/submodules/TelegramUI/Components/TabBarComponent/Sources/TabBarComponent.swift
++++ b/submodules/TelegramUI/Components/TabBarComponent/Sources/TabBarComponent.swift
+@@ -1,6 +1,7 @@
+ import Foundation
+ import LottieSettings
+ import UIKit
++import AsyncDisplayKit
+ import Display
+ import TelegramPresentationData
+ import ComponentFlow
+diff --git a/submodules/TelegramUI/Sources/AppDelegate.swift b/submodules/TelegramUI/Sources/AppDelegate.swift
+index 1ceb46bc61..09e627f5f0 100644
+--- a/submodules/TelegramUI/Sources/AppDelegate.swift
++++ b/submodules/TelegramUI/Sources/AppDelegate.swift
+@@ -66,6 +66,31 @@ import AppCenterCrashes
+ 
+ private let handleVoipNotifications = false
+ 
++#if TGBUILD
++// The Linux build's only working app-level diagnostic channel: appends to
++// Documents/tgbuild-log.txt (read with `pymobiledevice3 apps afc` pull). The device
++// syslog does not carry the app's NSLog output and debugserver attach is denied on the
++// free account. The synthesized main binary (link.py) logs "main: …" lines to the same
++// file with the same format.
++func tgbuildLog(_ text: String) {
++    let formatter = DateFormatter()
++    formatter.locale = Locale(identifier: "en_US_POSIX")
++    formatter.timeZone = TimeZone(identifier: "UTC")
++    formatter.dateFormat = "yyyy-MM-dd HH:mm:ss Z"
++    let line = "\(formatter.string(from: Date())) [tgbuild] \(text)\n"
++    if let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
++        let path = documents.appendingPathComponent("tgbuild-log.txt").path
++        if let handle = FileHandle(forWritingAtPath: path) {
++            handle.seekToEndOfFile()
++            handle.write(line.data(using: .utf8)!)
++            handle.closeFile()
++        } else {
++            try? line.data(using: .utf8)?.write(to: URL(fileURLWithPath: path))
++        }
++    }
++}
++#endif
++
+ private func isTonTransferUrl(_ url: URL) -> Bool {
+     return url.scheme?.lowercased() == "ton" && url.host?.lowercased() == "transfer"
+         && WalletContext.transferAddress(from: url.absoluteString) != nil
+@@ -351,6 +376,9 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
+     private var recaptchaClientsBySiteKey: [String: Promise<RecaptchaClient>] = [:]
+         
+     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
++        #if TGBUILD
++        tgbuildLog("didFinishLaunching: begin")
++        #endif
+         precondition(!testIsLaunched)
+         testIsLaunched = true
+         CrashReportCollector.shared.start()
+@@ -452,6 +480,9 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
+         self.nativeWindow = window
+         
+         hostView.containerView.layer.addSublayer(MetalEngine.shared.rootLayer)
++        #if TGBUILD
++        tgbuildLog("didFinishLaunching: MetalEngine.shared ok")
++        #endif
+         // On the first start after an update, compile the pipelines that would otherwise stall their first use.
+         if MetalEngine.shared.pipelineCache.isFresh {
+             prewarmLiquidGlassShapes([.crest], qos: .utility)
+@@ -573,7 +604,16 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
+         try! PasscodeEnvironment.shared.configure(PasscodeConfiguration(appGroupIdentifier: appGroupName, processRole: .mainApp, biometricKeychainService: walletBiometricKeychainService), privateAccessGroup: {
+             BuildConfig.keychainAccessGroup(baseAppBundleId: baseAppBundleId)
+         })
++        #if TGBUILD
++        // The free-provisioned profile carries no App Group entitlement: containerURL
++        // returns nil and the launch would take the silent "Error 2" early return below
++        // (no window, no crash, forever black). The group is only shared with extensions
++        // and this build has none, so fall back to the app's own Documents container.
+         let maybeAppGroupUrl = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupName)
++            ?? FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
++        #else
++        let maybeAppGroupUrl = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupName)
++        #endif
+         
+         let buildConfig = BuildConfig(baseAppBundleId: baseAppBundleId)
+         self.buildConfig = buildConfig
+@@ -726,6 +766,9 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
+         } else {
+             rootPath = rootPathForBasePath(appGroupUrl.path)
+         }
++        #if TGBUILD
++        tgbuildLog("didFinishLaunching: rootPath \(rootPath)")
++        #endif
+         if !isUITest {
+             performAppGroupUpgrades(appGroupPath: appGroupUrl.path, rootPath: rootPath)
+         }
+@@ -783,6 +826,9 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
+         let logsPath = rootPath + "/logs/app-logs"
+         let _ = try? FileManager.default.createDirectory(atPath: logsPath, withIntermediateDirectories: true, attributes: nil)
+         Logger.setSharedLogger(Logger(rootPath: rootPath, basePath: logsPath))
++        #if TGBUILD
++        tgbuildLog("didFinishLaunching: logger ok")
++        #endif
+ 
+         setManagedAudioSessionLogger({ s in
+             Logger.shared.log("ManagedAudioSession", s)
+@@ -963,6 +1009,12 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
+                 }
+             })
+         }, requestSiriAuthorization: { completion in
++            #if TGBUILD
++            // +[INPreferences siriAuthorizationStatus] asserts the process holds
++            // com.apple.developer.siri, which the free-provisioned profile lacks — the
++            // assert aborts the app. Siri shortcuts are non-functional without it.
++            completion(false)
++            #else
+             if #available(iOS 10, *) {
+                 INPreferences.requestSiriAuthorization { status in
+                     if case .authorized = status {
+@@ -974,7 +1026,11 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
+             } else {
+                 completion(false)
+             }
++            #endif
+         }, siriAuthorization: {
++            #if TGBUILD
++            return .denied
++            #else
+             if buildConfig.isSiriEnabled {
+                 if #available(iOS 10, *) {
+                     switch INPreferences.siriAuthorizationStatus() {
+@@ -993,6 +1049,7 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
+             } else {
+                 return .denied
+             }
++            #endif
+         }, getWindowHost: {
+             return self.nativeWindow
+         }, presentNativeController: { controller in
+@@ -1062,10 +1119,16 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
+             }
+         })
+         
++        #if TGBUILD
++        tgbuildLog("didFinishLaunching: setupAccountManager")
++        #endif
+         let accountManager: AccountManager<TelegramAccountManagerTypes> = setupAccountManager(basePath: rootPath + "/accounts-metadata", isTemporary: false, isReadOnly: false, useCaches: true, removeDatabaseOnError: true, resetLocalSecrets: {
+             try resetWalletLocalSecrets()
+         })
+         self.accountManager = accountManager
++        #if TGBUILD
++        tgbuildLog("didFinishLaunching: accountManager ok")
++        #endif
+ 
+         telegramUIDeclareEncodables()
+         initializeAccountManagement()
+diff --git a/submodules/TgVoipWebrtc/tgcalls b/submodules/TgVoipWebrtc/tgcalls
+--- a/submodules/TgVoipWebrtc/tgcalls
++++ b/submodules/TgVoipWebrtc/tgcalls
+@@ -1 +1 @@
+-Subproject commit 8d6dd4c61e62965cb574c29e39327a4686066381
++Subproject commit 8d6dd4c61e62965cb574c29e39327a4686066381-dirty
+diff --git a/submodules/UIKitRuntimeUtils/Source/UIKitRuntimeUtils/UIBarButtonItem+Proxy.h b/submodules/UIKitRuntimeUtils/Source/UIKitRuntimeUtils/UIBarButtonItem+Proxy.h
+index 69b8a6a340..9493b11925 100644
+--- a/submodules/UIKitRuntimeUtils/Source/UIKitRuntimeUtils/UIBarButtonItem+Proxy.h
++++ b/submodules/UIKitRuntimeUtils/Source/UIKitRuntimeUtils/UIBarButtonItem+Proxy.h
+@@ -1,5 +1,5 @@
+ #import <UIKit/UIKit.h>
+-#import <AsyncDisplayKit/ASDisplayNode.h>
++@class ASDisplayNode;
+ 
+ typedef void (^UIBarButtonItemSetTitleListener)(NSString *);
+ typedef void (^UIBarButtonItemSetEnabledListener)(BOOL);

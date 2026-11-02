@@ -1,7 +1,7 @@
 # Receipt: Display unblocked; ObjC residue green; Rust backend live; linker proven
 
 Date: 2026-10-27 (second session of the day). Entry point was
-[`linux-build-next-session.md`](../linux-build-next-session.md) §4.1 (Display). Everything
+[`linux-build-next-session.md`](../journal/linux-build-next-session.md) §4.1 (Display). Everything
 below is evidence-backed; commands runnable from `$HOME/dev/Telegram-iOS` with
 `export PATH=/usr/local/usr/bin:$HOME/.local/bin:$PATH`.
 

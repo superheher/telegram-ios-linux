@@ -1,7 +1,7 @@
 # Receipt: the first real launches of the Linux build, and what they took
 
 Date: 2026-10-28. Started as "make the launch non-black" (per
-[`linux-build-next-session.md`](../linux-build-next-session.md) §1) and ended as the
+[`linux-build-next-session.md`](../journal/linux-build-next-session.md) §1) and ended as the
 first launches of the Linux-built app **as itself** — with a correction of yesterday's
 central claim recorded in §1. Everything below is evidence-backed.
 
@@ -258,7 +258,7 @@ The relinked app was installed and relaunched: the chat list renders complete (h
 buttons, archive row, avatars, badges — `docs/receipts/assets/ui-walk/
 2026-10-28-relaunch-after-resource-fix.png`), no new crash reports, breadcrumb
 heartbeats steady. The ledger with the full tables lives in
-[`docs/ui-gaps.md`](../ui-gaps.md); the screen-by-screen walk continues there.
+[`docs/ui-gaps.md`](../journal/ui-gaps.md); the screen-by-screen walk continues there.
 
 ## 11. The walk's first drive and the Metal-loader fix (2026-10-29 morning)
 

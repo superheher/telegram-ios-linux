@@ -172,7 +172,7 @@ the package to exist).
 
 Following [`linux-build-research-plan.md`](linux-build-research-plan.md) Phase 1.
 Receipt with full evidence:
-[`receipts/2026-10-25-phase1-graph-extractor.md`](receipts/2026-10-25-phase1-graph-extractor.md).
+[`receipts/2026-10-25-phase1-graph-extractor.md`](../receipts/2026-10-25-phase1-graph-extractor.md).
 
 - **`build-input/configuration-repository` was broken and is fixed.** The
   night session's `variables.bzl` used unprefixed names, but BUILD files load
@@ -200,7 +200,7 @@ Receipt with full evidence:
 
 ## Update 2026-10-25 (day session, cont.): Phase 2 ObjC backend
 
-Receipt: [`receipts/2026-10-25-phase2-objc-backend.md`](receipts/2026-10-25-phase2-objc-backend.md).
+Receipt: [`receipts/2026-10-25-phase2-objc-backend.md`](../receipts/2026-10-25-phase2-objc-backend.md).
 
 - **`tools/tgbuild/objc.py`**: per-module modulemaps (MonotonicTime pattern
   generalized), dependency-closure compile through sdk-free `cc.sh`, flags
@@ -224,7 +224,7 @@ Receipt: [`receipts/2026-10-25-phase2-objc-backend.md`](receipts/2026-10-25-phas
 
 ## Update 2026-10-25 (day session, cont.): Phase 3 Swift backend — milestones 1–2
 
-Receipt: [`receipts/2026-10-25-phase3-swift-backend.md`](receipts/2026-10-25-phase3-swift-backend.md).
+Receipt: [`receipts/2026-10-25-phase3-swift-backend.md`](../receipts/2026-10-25-phase3-swift-backend.md).
 
 - **`tools/tgbuild/swift.py`**: per-module `-emit-module` + `-c` in dependency order from
   modules.json; content-hash cache; transitive ObjC-dep clang modulemaps (direct-only broke
@@ -302,7 +302,7 @@ replace the stub-layer verification.
 
 The drivers now default to the real iPhoneOS27.2.sdk (`TGBUILD_SDKFREE=1` restores the
 sdk-free tree; `TGBUILD_SYSROOT` overrides both). Receipt:
-[`receipts/2026-10-27-fullsdk-switch.md`](receipts/2026-10-27-fullsdk-switch.md).
+[`receipts/2026-10-27-fullsdk-switch.md`](../receipts/2026-10-27-fullsdk-switch.md).
 
 **Swift side.** The invocation that works: `-sdk` real SDK, `-resource-dir` a synthesized
 dir (symlinks to the toolchain's `clang` + `shims`; the toolchain's own resource dir puts

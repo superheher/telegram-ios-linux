@@ -4,7 +4,7 @@ Written 2026-10-25 end of day for the next session; **updated 2026-10-26: Phase 
 (the Xcode 27.2 .xip arrived, full-SDK bundle built and registered — §1a)**. Read together with
 [`linux-build-research-plan.md`](linux-build-research-plan.md) (the plan, maturity levels L0–L4),
 [`linux-build-2026-10-25.md`](linux-build-2026-10-25.md) (running log) and
-[`receipts/`](receipts/) (phase evidence). This file is the session-entry point: everything
+[`receipts/`](../receipts/) (phase evidence). This file is the session-entry point: everything
 needed to continue without re-deriving.
 
 ## 1. One-paragraph state
@@ -47,7 +47,7 @@ belonged to the **official App Store Telegram** still installed on the phone —
 by the canonical bundle id hit it, because xtool provisions our build as
 `XTL-[redacted-team-id].ph.telegra.Telegraph`. The first real launches of OUR build surfaced a
 chain of failures, all fixed with evidence in
-[`receipts/2026-10-28-black-screen-fixed.md`](receipts/2026-10-28-black-screen-fixed.md):
+[`receipts/2026-10-28-black-screen-fixed.md`](../receipts/2026-10-28-black-screen-fixed.md):
 dyld (app rpath + `Frameworks/` + weak swift/Translation loads + a hand-written
 `swift_allocateMetadataPack` shim — the Linux toolchain has no
 libswiftCompatibilityPacks.a), the free profile's missing App Group entitlement (silent
@@ -70,7 +70,7 @@ so link.py now exports all five asset catalogs as loose namespaced image files
 list renders with live messages, avatars and tab icons**
 (`receipts/assets/2026-10-28-linux-nuc-chat-list.png`).
 
-**Next session's plan is written: [`next-session-ui-walk.md`](next-session-ui-walk.md) —
+**Next session's plan is written: [`next-session-ui-walk.md`](ui-walk-method.md) —
 a read-only walk through the app to catalog and iteratively fix the graphical gaps
 (static asset-coverage audit first, then screen-by-screen with the user driving the
 touch screen). Then the six extensions, the real td/tde2e (stubs), the reference-core wasm
@@ -121,7 +121,7 @@ screen, the agent screenshots and fills the ledger.
 ## 1b. Full-SDK driver mode — DONE (2026-10-27)
 
 Implemented exactly along the plan, with these deltas discovered on the way (recipes and
-evidence in [`receipts/2026-10-27-fullsdk-switch.md`](receipts/2026-10-27-fullsdk-switch.md)):
+evidence in [`receipts/2026-10-27-fullsdk-switch.md`](../receipts/2026-10-27-fullsdk-switch.md)):
 
 - **objc.py**: `TGBUILD_SYSROOT` / `TGBUILD_SDKFREE` env switching; stubs ignored entirely in
   full mode; SDK libc++ (`usr/include/c++/v1`) per C++ file only; sysroot in the object hash;
@@ -376,7 +376,7 @@ New traps from the 2026-10-27 full-SDK switch:
   (clang's per-module lock files make it concurrency-safe).
 
 New traps from the 2026-10-28 session (details and evidence in
-[`receipts/2026-10-28-black-screen-fixed.md`](receipts/2026-10-28-black-screen-fixed.md)):
+[`receipts/2026-10-28-black-screen-fixed.md`](../receipts/2026-10-28-black-screen-fixed.md)):
 
 - **swift.py's cache key hashes source PATHS, not contents** — an edited module stays
   "cached"; `--force` recompiles the whole ~520-module closure (hours). The driver now

@@ -3,10 +3,10 @@
 Status: active (2026-10-25). Author: night session of 2026-10-24/25; baseline
 facts in [`linux-build-2026-10-25.md`](linux-build-2026-10-25.md).
 **Phase 1 is done** — receipt
-[`receipts/2026-10-25-phase1-graph-extractor.md`](receipts/2026-10-25-phase1-graph-extractor.md).
+[`receipts/2026-10-25-phase1-graph-extractor.md`](../receipts/2026-10-25-phase1-graph-extractor.md).
 **Session entry point: [`linux-build-next-session.md`](linux-build-next-session.md)** —
 current position (Phase 3 tail), iteration loops, machine-local snapshot
-([`tgbuild-sdkfree-snapshot/`](tgbuild-sdkfree-snapshot/)), and the remaining
+([`tgbuild-sdkfree-snapshot/`](../../tools/snapshot/)), and the remaining
 phases with acceptance criteria.
 
 ## 0. Goal and maturity levels
@@ -119,7 +119,7 @@ crosstool is `xcrun`-driven macOS-only).
    "[redacted-device]" ([redacted-udid]…, iPhone10,6, iOS 16.7.16).
 
 ### Phase 1 — graph extractor (1–2 days) — **DONE 2026-10-25** (receipt
-[`receipts/2026-10-25-phase1-graph-extractor.md`](receipts/2026-10-25-phase1-graph-extractor.md))
+[`receipts/2026-10-25-phase1-graph-extractor.md`](../receipts/2026-10-25-phase1-graph-extractor.md))
 - `tools/tgbuild/extract.py`: `bazel query --output=xml` →
   `build-input/graph/modules.json` (label, kind, srcs, deps, copts, module_name, sdk deps;
   filegroups/aliases resolved; topological `order` over module deps). cquery turned out
@@ -140,7 +140,7 @@ crosstool is `xcrun`-driven macOS-only).
 
 ### Phase 2 — ObjC/C backend (3–7 days with full SDK; open-ended without) — **in progress,
 user-independent part done 2026-10-25** (receipt
-[`receipts/2026-10-25-phase2-objc-backend.md`](receipts/2026-10-25-phase2-objc-backend.md))
+[`receipts/2026-10-25-phase2-objc-backend.md`](../receipts/2026-10-25-phase2-objc-backend.md))
 - **Done**: `tools/tgbuild/objc.py` (per-module modulemap generation from modules.json — the
   MonotonicTime pattern generalized — dependency-closure compile via sdk-free `cc.sh`,
   content-hash object cache, failure taxonomy), and the no-Xcode stub layer
@@ -159,7 +159,7 @@ user-independent part done 2026-10-25** (receipt
   blocked on Phase 0 (user).
 
 ### Phase 3 — Swift backend (1–2 weeks) — **in progress, milestones 1–2 done 2026-10-25**
-(receipt [`receipts/2026-10-25-phase3-swift-backend.md`](receipts/2026-10-25-phase3-swift-backend.md))
+(receipt [`receipts/2026-10-25-phase3-swift-backend.md`](../receipts/2026-10-25-phase3-swift-backend.md))
 - **Done**: `tools/tgbuild/swift.py` (topological per-module `-emit-module` + `-c`, flags from
   the night session's proven invocation, content-hash cache, transitive ObjC-dep clang
   modulemaps); Foundation overlay rebuilt with the closed-source-bridge API

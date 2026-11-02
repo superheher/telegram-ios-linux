@@ -1,0 +1,4 @@
+framework module WebKit [system] {
+  umbrella header "WebKit.h"
+  export *
+}

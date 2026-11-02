@@ -1,0 +1,4 @@
+framework module CoreTelephony [system] {
+  umbrella header "CoreTelephony.h"
+  export *
+}

@@ -1,0 +1,4 @@
+framework module CloudKit [system] {
+  umbrella header "CloudKit.h"
+  export *
+}

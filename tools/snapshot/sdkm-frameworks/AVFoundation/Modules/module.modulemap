@@ -1,0 +1,4 @@
+framework module AVFoundation [system] {
+  umbrella header "AVFoundation.h"
+  export *
+}

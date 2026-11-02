@@ -1,0 +1,4 @@
+framework module CoreServices [system] {
+  umbrella header "CoreServices.h"
+  export *
+}

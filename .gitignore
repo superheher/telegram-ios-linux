@@ -1,0 +1,13 @@
+# Build inputs and caches: generated, machine-local, gigabytes.
+build-input/
+
+# Apple disk images and object files never belong in git.
+*.xip
+*.o
+
+# Python bytecode.
+__pycache__/
+*.pyc
+
+# Machine-local editor state.
+*.swp

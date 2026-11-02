@@ -61,6 +61,9 @@ Then materialize the generated sources (they are not in the upstream tree):
 ```sh
 cp -a <this-repo>/tools/generated/TelegramApi/.       submodules/TelegramApi/Generated/
 cp -a <this-repo>/tools/generated/FlatSerialization/. submodules/TelegramCore/FlatSerialization/
+mkdir -p third-party/wallet-engine/Generated
+cp -a <this-repo>/tools/generated/wallet-engine/.     third-party/wallet-engine/Generated/
+touch Telegram/empty.swift    # the //Telegram:_LocalDebugOptions placeholder
 ```
 
 (Or regenerate from the schemas — recipes in `tools/generated/README.md`.)

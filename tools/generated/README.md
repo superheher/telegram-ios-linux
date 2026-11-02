@@ -8,6 +8,12 @@ source tree (untracked) where the graph's srcs paths expect them.
 |---|---|---|
 | `TelegramApi/` | 44 `Api*.swift` + `TLApiSchemaData.m` + `Tests/` (fixtures, accessor probes) | `submodules/TelegramApi/Generated/` |
 | `FlatSerialization/` | 34 `*_generated.swift` | `submodules/TelegramCore/FlatSerialization/` |
+| `wallet-engine/` | `WalletEngineFFI.swift` (Swift FFI surface), `wallet_engineFFI.h` (bindgen C header), `module.modulemap` | `third-party/wallet-engine/Generated/` |
+
+The wallet-engine set is needed even though the Rust engine itself links as
+a stub (see `docs/status.md`): the Swift side of the graph compiles against
+the FFI interface. It is codegen output of the upstream repository's own
+sources (bindgen over the vendored Rust crate), same license as the rest.
 
 Copied verbatim from a working 2026-11-02 tree built from the base commit's
 schemas. They derive from schemas that are part of the upstream GPL

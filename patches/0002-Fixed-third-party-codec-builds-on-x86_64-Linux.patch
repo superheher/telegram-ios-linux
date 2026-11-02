@@ -1,0 +1,213 @@
+From 352f8dbf69deff8b761e3733656d8579942885ff Mon Sep 17 00:00:00 2001
+From: superheher <heh@vivaldi.net>
+Date: Mon, 2 Nov 2026 23:19:02 +0300
+Subject: [PATCH 2/7] Fixed third-party codec builds on x86_64 Linux.
+
+---
+ .../{BUILD.bazel => BUILD.bazel.upstream}     |  0
+ third-party/openh264/BUILD                    |  9 ++++--
+ third-party/subcodec/src/mbs_mux_common.cpp   | 30 ++++++++++++++-----
+ third-party/subcodec/src/mbs_mux_common.h     |  2 ++
+ third-party/wamr/BUILD                        | 15 ++++++++--
+ 5 files changed, 42 insertions(+), 14 deletions(-)
+ rename third-party/libjxl/libjxl/{BUILD.bazel => BUILD.bazel.upstream} (100%)
+
+diff --git a/third-party/libjxl/libjxl/BUILD.bazel b/third-party/libjxl/libjxl/BUILD.bazel.upstream
+similarity index 100%
+rename from third-party/libjxl/libjxl/BUILD.bazel
+rename to third-party/libjxl/libjxl/BUILD.bazel.upstream
+diff --git a/third-party/openh264/BUILD b/third-party/openh264/BUILD
+index 3066f72227..30417640a2 100644
+--- a/third-party/openh264/BUILD
++++ b/third-party/openh264/BUILD
+@@ -59,21 +59,24 @@ arch_specific_sources = select({
+     "@build_bazel_rules_apple//apple:ios_arm64": arm64_specific_sources,
+     "//build-system:ios_sim_arm64": arm64_specific_sources,
+     "@build_bazel_rules_apple//apple:ios_x86_64": [],
+-    "//conditions:default": arm64_specific_sources,
++    "@platforms//cpu:aarch64": arm64_specific_sources,
++    "//conditions:default": [],
+ })
+ 
+ arch_specific_copts = select({
+     "@build_bazel_rules_apple//apple:ios_arm64": arm64_specific_copts,
+     "//build-system:ios_sim_arm64": arm64_specific_copts,
+     "@build_bazel_rules_apple//apple:ios_x86_64": [],
+-    "//conditions:default": arm64_specific_copts,
++    "@platforms//cpu:aarch64": arm64_specific_copts,
++    "//conditions:default": [],
+ })
+ 
+ arch_specific_textual_hdrs = select({
+     "@build_bazel_rules_apple//apple:ios_arm64": arm64_specific_textual_hdrs,
+     "//build-system:ios_sim_arm64": arm64_specific_textual_hdrs,
+     "@build_bazel_rules_apple//apple:ios_x86_64": [],
+-    "//conditions:default": arm64_specific_textual_hdrs,
++    "@platforms//cpu:aarch64": arm64_specific_textual_hdrs,
++    "//conditions:default": [],
+ })
+ 
+ all_sources = arch_specific_sources + [
+diff --git a/third-party/subcodec/src/mbs_mux_common.cpp b/third-party/subcodec/src/mbs_mux_common.cpp
+index c3bb6c9db5..c5b068e7d5 100644
+--- a/third-party/subcodec/src/mbs_mux_common.cpp
++++ b/third-party/subcodec/src/mbs_mux_common.cpp
+@@ -5,7 +5,9 @@
+ #include <cmath>
+ #include <algorithm>
+ #include <vector>
++#if defined(__ARM_NEON) || defined(__ARM_NEON__)
+ #include <arm_neon.h>
++#endif
+ 
+ namespace subcodec::mux {
+ 
+@@ -389,6 +391,7 @@ void RbspWriter::copy_blob(const uint8_t* src, int nbits) {
+         }
+ 
+         /* NEON bulk shift+write for interior */
++#if defined(__ARM_NEON) || defined(__ARM_NEON__)
+         if (i < full_bytes) {
+             int8x16_t rshift = vdupq_n_s8(static_cast<int8_t>(-bits));
+             int8x16_t lshift = vdupq_n_s8(static_cast<int8_t>(8 - bits));
+@@ -405,13 +408,14 @@ void RbspWriter::copy_blob(const uint8_t* src, int nbits) {
+ 
+             /* Sync partial with last processed byte */
+             if (i > 1) partial = src[i - 1];
++        }
++#endif
+ 
+-            /* Scalar tail */
+-            while (i < full_bytes) {
+-                partial = (partial << 8) | src[i];
+-                *out++ = static_cast<uint8_t>((partial >> bits) & 0xFF);
+-                i++;
+-            }
++        /* Scalar tail */
++        while (i < full_bytes) {
++            partial = (partial << 8) | src[i];
++            *out++ = static_cast<uint8_t>((partial >> bits) & 0xFF);
++            i++;
+         }
+     }
+ 
+@@ -441,6 +445,7 @@ size_t rbsp_to_ebsp(const uint8_t* rbsp, size_t rbsp_size,
+ 
+ /* ---- NEON-accelerated RBSP to EBSP ---- */
+ 
++#if defined(__ARM_NEON) || defined(__ARM_NEON__)
+ size_t rbsp_to_ebsp_neon(const uint8_t* rbsp, size_t rbsp_size,
+                           uint8_t* ebsp, size_t ebsp_size) {
+     size_t out = 0;
+@@ -514,6 +519,7 @@ size_t rbsp_to_ebsp_neon(const uint8_t* rbsp, size_t rbsp_size,
+ 
+     return out;
+ }
++#endif
+ 
+ /* ---- IDR frame writer ---- */
+ 
+@@ -689,9 +695,15 @@ std::expected<size_t, Error> write_p_frame_rbsp(
+     buf[0] = 0x00; buf[1] = 0x00; buf[2] = 0x00; buf[3] = 0x01;
+     buf[4] = (2 << 5) | 1;
+ 
++#if defined(__ARM_NEON) || defined(__ARM_NEON__)
+     size_t ebsp_len = rbsp_to_ebsp_neon(
+         rbsp_buf.data(), rbsp_size,
+         buf + 5, output.size() - 5);
++#else
++    size_t ebsp_len = rbsp_to_ebsp(
++        rbsp_buf.data(), rbsp_size,
++        buf + 5, output.size() - 5);
++#endif
+ 
+     if (ebsp_len == 0 && rbsp_size > 0)
+         return std::unexpected(Error::OUT_OF_SPACE);
+@@ -813,7 +825,7 @@ void EbspWriter::flush_bytes(const uint8_t* src, int nbytes) {
+ 
+ /* ---- EbspWriter copy_blob ---- */
+ 
+-__attribute__((always_inline))
++inline
+ void EbspWriter::copy_blob(const uint8_t* src, int nbits) {
+     if (nbits <= 0) return;
+ 
+@@ -880,7 +892,7 @@ void EbspWriter::copy_blob(const uint8_t* src, int nbits) {
+     }
+ }
+ 
+-__attribute__((always_inline))
++inline
+ void EbspWriter::copy_blob(const uint8_t* src, int nbits,
+                            bool long_zero_run, uint8_t leading_zb,
+                            uint8_t trailing_zb) {
+@@ -953,6 +965,7 @@ void EbspWriter::copy_blob(const uint8_t* src, int nbits,
+ 
+             /* Set up NEON shift vectors (constant across all iterations).
+              * vshlq_u8 with negative shift = shift right. */
++#if defined(__ARM_NEON) || defined(__ARM_NEON__)
+             int8x16_t rshift = vdupq_n_s8(static_cast<int8_t>(-bits));
+             int8x16_t lshift = vdupq_n_s8(static_cast<int8_t>(8 - bits));
+ 
+@@ -967,6 +980,7 @@ void EbspWriter::copy_blob(const uint8_t* src, int nbits,
+                 i += 16;
+                 remaining -= 16;
+             }
++#endif
+ 
+             /* Sync partial with last source byte before scalar tail.
+              * NEON wrote directly to output without updating partial.
+diff --git a/third-party/subcodec/src/mbs_mux_common.h b/third-party/subcodec/src/mbs_mux_common.h
+index 7425068694..68583675ed 100644
+--- a/third-party/subcodec/src/mbs_mux_common.h
++++ b/third-party/subcodec/src/mbs_mux_common.h
+@@ -8,8 +8,10 @@
+ #include <vector>
+ #include <tuple>
+ #if defined(__ARM_NEON) || defined(__ARM_NEON__)
++#if defined(__ARM_NEON) || defined(__ARM_NEON__)
+ #include <arm_neon.h>
+ #endif
++#endif
+ #include "types.h"
+ #include "error.h"
+ #include "bs.h"
+diff --git a/third-party/wamr/BUILD b/third-party/wamr/BUILD
+index 5b41529650..9fa120578b 100644
+--- a/third-party/wamr/BUILD
++++ b/third-party/wamr/BUILD
+@@ -41,10 +41,17 @@ wamr_copts = [
+     "-DWASM_DISABLE_STACK_HW_BOUND_CHECK=1",
+     "-DBH_MALLOC=wasm_runtime_malloc",
+     "-DBH_FREE=wasm_runtime_free",
+-    "-DBUILD_TARGET_AARCH64=1",
+-    "-DBUILD_TARGET=\\\"AARCH64\\\"",
+     "-w",
+ ] + select({
++    "@platforms//cpu:aarch64": [
++        "-DBUILD_TARGET_AARCH64=1",
++        "-DBUILD_TARGET=\\\"AARCH64\\\"",
++    ],
++    "//conditions:default": [
++        "-DBUILD_TARGET_X86_64=1",
++        "-DBUILD_TARGET=\\\"X86_64\\\"",
++    ],
++}) + select({
+     "@platforms//os:linux": ["-DBH_PLATFORM_LINUX", "-Ithird-party/wamr/core/shared/platform/linux"],
+     "//conditions:default": ["-DBH_PLATFORM_DARWIN", "-Ithird-party/wamr/core/shared/platform/darwin"],
+ })
+@@ -65,8 +72,10 @@ cc_library(
+         "core/iwasm/interpreter/wasm_interp_fast.c",
+         "core/iwasm/interpreter/wasm_loader.c",
+         "core/iwasm/interpreter/wasm_runtime.c",
+-        "core/iwasm/common/arch/invokeNative_aarch64.s",
+     ] + select({
++        "@platforms//cpu:aarch64": ["core/iwasm/common/arch/invokeNative_aarch64.s"],
++        "//conditions:default": ["core/iwasm/common/arch/invokeNative_em64.s"],
++    }) + select({
+         "@platforms//os:linux": ["core/shared/platform/linux/platform_init.c"],
+         "//conditions:default": ["core/shared/platform/darwin/platform_init.c"],
+     }),
+-- 
+2.43.0
+

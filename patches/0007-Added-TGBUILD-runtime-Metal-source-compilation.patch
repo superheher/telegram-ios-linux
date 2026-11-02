@@ -1,0 +1,1136 @@
+From 90e56aa32dab6a5d71d8daa44606021f10ead471 Mon Sep 17 00:00:00 2001
+From: superheher <heh@vivaldi.net>
+Date: Mon, 2 Nov 2026 23:19:36 +0300
+Subject: [PATCH 7/7] Added TGBUILD runtime Metal source compilation.
+
+---
+ .../Sources/AnimationCompressor.swift         | 48 ++++++++++++++++-
+ .../Sources/CameraPreviewView.swift           | 48 ++++++++++++++++-
+ .../Sources/RoundVideoFrameProcessor.swift    | 52 ++++++++++++++++++-
+ .../DrawingUI/Sources/DrawingMetalView.swift  | 48 ++++++++++++++++-
+ .../MetalEngine/Sources/MetalEngine.swift     | 52 +++++++++++++++++--
+ .../PremiumUI/Sources/DataRainView.swift      | 48 ++++++++++++++++-
+ .../Sources/TelegramCallsUIMetalLibrary.swift | 48 ++++++++++++++++-
+ .../Calls/CallScreen/Sources/CallScreen.swift | 48 ++++++++++++++++-
+ .../Sources/CameraMetalLibrary.swift          | 48 ++++++++++++++++-
+ .../DustEffect/Sources/DustEffectLayer.swift  | 48 ++++++++++++++++-
+ .../Sources/LiquidGlassShapesPipelines.swift  | 48 ++++++++++++++++-
+ .../Sources/MediaEditorRenderer.swift         | 48 ++++++++++++++++-
+ .../InteractiveDiamond/DiamondRenderer.swift  | 52 ++++++++++++++++++-
+ .../Sources/QrStudioMetal.swift               | 48 ++++++++++++++++-
+ .../Sources/StoryComposeLayer.swift           | 48 ++++++++++++++++-
+ .../Sources/WalletCardBackgroundView.swift    | 52 ++++++++++++++++++-
+ .../Sources/WalletSendAmountCanvas.swift      | 49 ++++++++++++++++-
+ 17 files changed, 811 insertions(+), 22 deletions(-)
+
+diff --git a/submodules/AnimationCompression/Sources/AnimationCompressor.swift b/submodules/AnimationCompression/Sources/AnimationCompressor.swift
+index 46bf366c3e..30d22b578f 100644
+--- a/submodules/AnimationCompression/Sources/AnimationCompressor.swift
++++ b/submodules/AnimationCompression/Sources/AnimationCompressor.swift
+@@ -234,7 +234,13 @@ public final class AnimationCompressor {
+             }
+             
+             if #available(iOS 10.0, *) {
+-                guard let defaultLibrary = try? device.makeDefaultLibrary(bundle: bundle) else {
++                var defaultLibrary = try? device.makeDefaultLibrary(bundle: bundle)
++                #if TGBUILD
++                if defaultLibrary == nil {
++                    defaultLibrary = tgBuildCompiledMetalLibrary(device: device, bundle: bundle)
++                }
++                #endif
++                guard let defaultLibrary = defaultLibrary else {
+                     return nil
+                 }
+                 self.defaultLibrary = defaultLibrary
+@@ -391,3 +397,43 @@ public final class AnimationCompressor {
+         self.sharedContext.compress(compressor: self, image: image, completion: completion)
+     }
+ }
++
++#if TGBUILD
++private func tgBuildCompiledMetalLibrary(device: MTLDevice, bundle: Bundle) -> MTLLibrary? {
++    // The Linux package carries the module's .metal sources without a compiled
++    // default.metallib: inline #include "…" from bundle files and compile at
++    // runtime (the MetalEngine TGBUILD pattern).
++    let metalURLs = ((try? FileManager.default.contentsOfDirectory(at: bundle.bundleURL, includingPropertiesForKeys: nil)) ?? [])
++        .filter { $0.pathExtension == "metal" }
++        .sorted { $0.lastPathComponent < $1.lastPathComponent }
++    guard !metalURLs.isEmpty else {
++        return nil
++    }
++    var cache: [String: String] = [:]
++    func resolvedSource(_ url: URL) -> String {
++        let name = url.lastPathComponent
++        if let cached = cache[name] {
++            return cached
++        }
++        var text = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
++        if let regex = try? NSRegularExpression(pattern: "#include\\s*\"([^\"]+)\"") {
++            for match in regex.matches(in: text, range: NSRange(text.startIndex..., in: text)).reversed() {
++                let includeName = (text as NSString).substring(with: match.range(at: 1))
++                let base = (includeName as NSString).deletingPathExtension
++                let ext = (includeName as NSString).pathExtension
++                let includeURL = ext.isEmpty ? bundle.url(forResource: base, withExtension: nil) : bundle.url(forResource: base, withExtension: ext)
++                guard let includeURL = includeURL else {
++                    continue
++                }
++                if let range = Range(match.range, in: text) {
++                    text.replaceSubrange(range, with: resolvedSource(includeURL))
++                }
++            }
++        }
++        cache[name] = text
++        return text
++    }
++    let combined = metalURLs.map { resolvedSource($0) }.joined(separator: "\n")
++    return try? device.makeLibrary(source: combined, options: nil)
++}
++#endif
+diff --git a/submodules/Camera/CameraLegacy/Sources/CameraPreviewView.swift b/submodules/Camera/CameraLegacy/Sources/CameraPreviewView.swift
+index 254aa626ea..bc4fe6abb6 100644
+--- a/submodules/Camera/CameraLegacy/Sources/CameraPreviewView.swift
++++ b/submodules/Camera/CameraLegacy/Sources/CameraPreviewView.swift
+@@ -296,7 +296,13 @@ final class LegacyCameraPreviewView: MTKView {
+             return nil
+         }
+ 
+-        guard let defaultLibrary = try? device.makeDefaultLibrary(bundle: bundle) else {
++        var defaultLibrary = try? device.makeDefaultLibrary(bundle: bundle)
++        #if TGBUILD
++        if defaultLibrary == nil {
++            defaultLibrary = tgBuildCompiledMetalLibrary(device: device, bundle: bundle)
++        }
++        #endif
++        guard let defaultLibrary = defaultLibrary else {
+             return nil
+         }
+ 
+@@ -705,3 +711,43 @@ final class LegacyCameraPreviewView: MTKView {
+     }
+ 
+ }
++
++#if TGBUILD
++private func tgBuildCompiledMetalLibrary(device: MTLDevice, bundle: Bundle) -> MTLLibrary? {
++    // The Linux package carries the module's .metal sources without a compiled
++    // default.metallib: inline #include "…" from bundle files and compile at
++    // runtime (the MetalEngine TGBUILD pattern).
++    let metalURLs = ((try? FileManager.default.contentsOfDirectory(at: bundle.bundleURL, includingPropertiesForKeys: nil)) ?? [])
++        .filter { $0.pathExtension == "metal" }
++        .sorted { $0.lastPathComponent < $1.lastPathComponent }
++    guard !metalURLs.isEmpty else {
++        return nil
++    }
++    var cache: [String: String] = [:]
++    func resolvedSource(_ url: URL) -> String {
++        let name = url.lastPathComponent
++        if let cached = cache[name] {
++            return cached
++        }
++        var text = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
++        if let regex = try? NSRegularExpression(pattern: "#include\\s*\"([^\"]+)\"") {
++            for match in regex.matches(in: text, range: NSRange(text.startIndex..., in: text)).reversed() {
++                let includeName = (text as NSString).substring(with: match.range(at: 1))
++                let base = (includeName as NSString).deletingPathExtension
++                let ext = (includeName as NSString).pathExtension
++                let includeURL = ext.isEmpty ? bundle.url(forResource: base, withExtension: nil) : bundle.url(forResource: base, withExtension: ext)
++                guard let includeURL = includeURL else {
++                    continue
++                }
++                if let range = Range(match.range, in: text) {
++                    text.replaceSubrange(range, with: resolvedSource(includeURL))
++                }
++            }
++        }
++        cache[name] = text
++        return text
++    }
++    let combined = metalURLs.map { resolvedSource($0) }.joined(separator: "\n")
++    return try? device.makeLibrary(source: combined, options: nil)
++}
++#endif
+diff --git a/submodules/Camera/CameraNeo/Sources/RoundVideoFrameProcessor.swift b/submodules/Camera/CameraNeo/Sources/RoundVideoFrameProcessor.swift
+index 901bd950c0..dc10e818a3 100644
+--- a/submodules/Camera/CameraNeo/Sources/RoundVideoFrameProcessor.swift
++++ b/submodules/Camera/CameraNeo/Sources/RoundVideoFrameProcessor.swift
+@@ -245,8 +245,16 @@ final class RoundVideoFrameProcessor {
+ 
+         let containingBundle = Bundle(for: CameraBundleMarker.self)
+         guard let bundleUrl = containingBundle.url(forResource: "CameraNeoBundle", withExtension: "bundle"),
+-              let resourceBundle = Bundle(url: bundleUrl),
+-              let library = try? device.makeDefaultLibrary(bundle: resourceBundle),
++              let resourceBundle = Bundle(url: bundleUrl) else {
++            return nil
++        }
++        var library = try? device.makeDefaultLibrary(bundle: resourceBundle)
++        #if TGBUILD
++        if library == nil {
++            library = tgBuildCompiledMetalLibrary(device: device, bundle: resourceBundle)
++        }
++        #endif
++        guard let library = library,
+               let function = library.makeFunction(name: "convertNV12"),
+               let plainPipelineState = try? device.makeComputePipelineState(function: function) else {
+             return nil
+@@ -701,3 +709,43 @@ final class RoundVideoFrameProcessor {
+         )
+     }
+ }
++
++#if TGBUILD
++private func tgBuildCompiledMetalLibrary(device: MTLDevice, bundle: Bundle) -> MTLLibrary? {
++    // The Linux package carries the module's .metal sources without a compiled
++    // default.metallib: inline #include "…" from bundle files and compile at
++    // runtime (the MetalEngine TGBUILD pattern).
++    let metalURLs = ((try? FileManager.default.contentsOfDirectory(at: bundle.bundleURL, includingPropertiesForKeys: nil)) ?? [])
++        .filter { $0.pathExtension == "metal" }
++        .sorted { $0.lastPathComponent < $1.lastPathComponent }
++    guard !metalURLs.isEmpty else {
++        return nil
++    }
++    var cache: [String: String] = [:]
++    func resolvedSource(_ url: URL) -> String {
++        let name = url.lastPathComponent
++        if let cached = cache[name] {
++            return cached
++        }
++        var text = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
++        if let regex = try? NSRegularExpression(pattern: "#include\\s*\"([^\"]+)\"") {
++            for match in regex.matches(in: text, range: NSRange(text.startIndex..., in: text)).reversed() {
++                let includeName = (text as NSString).substring(with: match.range(at: 1))
++                let base = (includeName as NSString).deletingPathExtension
++                let ext = (includeName as NSString).pathExtension
++                let includeURL = ext.isEmpty ? bundle.url(forResource: base, withExtension: nil) : bundle.url(forResource: base, withExtension: ext)
++                guard let includeURL = includeURL else {
++                    continue
++                }
++                if let range = Range(match.range, in: text) {
++                    text.replaceSubrange(range, with: resolvedSource(includeURL))
++                }
++            }
++        }
++        cache[name] = text
++        return text
++    }
++    let combined = metalURLs.map { resolvedSource($0) }.joined(separator: "\n")
++    return try? device.makeLibrary(source: combined, options: nil)
++}
++#endif
+diff --git a/submodules/DrawingUI/Sources/DrawingMetalView.swift b/submodules/DrawingUI/Sources/DrawingMetalView.swift
+index 38a11c72d6..f41aff7f7c 100644
+--- a/submodules/DrawingUI/Sources/DrawingMetalView.swift
++++ b/submodules/DrawingUI/Sources/DrawingMetalView.swift
+@@ -32,7 +32,13 @@ final class DrawingMetalView: MTKView {
+         guard let device = MTLCreateSystemDefaultDevice() else {
+             return nil
+         }
+-        guard let defaultLibrary = try? device.makeDefaultLibrary(bundle: bundle) else {
++        var defaultLibrary = try? device.makeDefaultLibrary(bundle: bundle)
++        #if TGBUILD
++        if defaultLibrary == nil {
++            defaultLibrary = tgBuildCompiledMetalLibrary(device: device, bundle: bundle)
++        }
++        #endif
++        guard let defaultLibrary = defaultLibrary else {
+             return nil
+         }
+         self.library = defaultLibrary
+@@ -713,3 +719,43 @@ final class Texture {
+         return image
+     }
+ }
++
++#if TGBUILD
++private func tgBuildCompiledMetalLibrary(device: MTLDevice, bundle: Bundle) -> MTLLibrary? {
++    // The Linux package carries the module's .metal sources without a compiled
++    // default.metallib: inline #include "…" from bundle files and compile at
++    // runtime (the MetalEngine TGBUILD pattern).
++    let metalURLs = ((try? FileManager.default.contentsOfDirectory(at: bundle.bundleURL, includingPropertiesForKeys: nil)) ?? [])
++        .filter { $0.pathExtension == "metal" }
++        .sorted { $0.lastPathComponent < $1.lastPathComponent }
++    guard !metalURLs.isEmpty else {
++        return nil
++    }
++    var cache: [String: String] = [:]
++    func resolvedSource(_ url: URL) -> String {
++        let name = url.lastPathComponent
++        if let cached = cache[name] {
++            return cached
++        }
++        var text = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
++        if let regex = try? NSRegularExpression(pattern: "#include\\s*\"([^\"]+)\"") {
++            for match in regex.matches(in: text, range: NSRange(text.startIndex..., in: text)).reversed() {
++                let includeName = (text as NSString).substring(with: match.range(at: 1))
++                let base = (includeName as NSString).deletingPathExtension
++                let ext = (includeName as NSString).pathExtension
++                let includeURL = ext.isEmpty ? bundle.url(forResource: base, withExtension: nil) : bundle.url(forResource: base, withExtension: ext)
++                guard let includeURL = includeURL else {
++                    continue
++                }
++                if let range = Range(match.range, in: text) {
++                    text.replaceSubrange(range, with: resolvedSource(includeURL))
++                }
++            }
++        }
++        cache[name] = text
++        return text
++    }
++    let combined = metalURLs.map { resolvedSource($0) }.joined(separator: "\n")
++    return try? device.makeLibrary(source: combined, options: nil)
++}
++#endif
+diff --git a/submodules/MetalEngine/Sources/MetalEngine.swift b/submodules/MetalEngine/Sources/MetalEngine.swift
+index 20cf349f84..815da54a44 100644
+--- a/submodules/MetalEngine/Sources/MetalEngine.swift
++++ b/submodules/MetalEngine/Sources/MetalEngine.swift
+@@ -797,8 +797,8 @@ public final class MetalEngine {
+             }
+             self.commandQueue = commandQueue
+             
+-            let library: MTLLibrary?
+-            
++            var library: MTLLibrary?
++
+             #if os(iOS)
+             let mainBundle = Bundle(for: Impl.self)
+             guard let path = mainBundle.path(forResource: "MetalEngineMetalSourcesBundle", ofType: "bundle") else {
+@@ -808,6 +808,48 @@ public final class MetalEngine {
+                 return nil
+             }
+             library = try? device.makeDefaultLibrary(bundle: bundle)
++            NSLog("[tgbuild-metal] makeDefaultLibrary(bundle:) = \(library != nil ? "loaded" : "nil (expected on Linux package)")")
++            #if TGBUILD
++            if library == nil {
++                // The Linux package ships the bundle's .metal sources without a compiled
++                // default.metallib: inline #includes and compile at runtime.
++                let metalURLs = ((try? FileManager.default.contentsOfDirectory(at: bundle.bundleURL, includingPropertiesForKeys: nil)) ?? [])
++                    .filter { $0.pathExtension == "metal" }
++                    .sorted { $0.lastPathComponent < $1.lastPathComponent }
++                NSLog("[tgbuild-metal] runtime compile: %d .metal file(s) in bundle", metalURLs.count)
++                if !metalURLs.isEmpty {
++                    var includeCache: [String: String] = [:]
++                    func resolvedSource(_ url: URL) -> String {
++                        let name = url.lastPathComponent
++                        if let cached = includeCache[name] {
++                            return cached
++                        }
++                        var text = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
++                        if let regex = try? NSRegularExpression(pattern: "#include\\s*\"([^\"]+)\"") {
++                            for match in regex.matches(in: text, range: NSRange(text.startIndex..., in: text)).reversed() {
++                                let includeName = (text as NSString).substring(with: match.range(at: 1))
++                                let base = (includeName as NSString).deletingPathExtension
++                                let ext = (includeName as NSString).pathExtension
++                                let includeURL = ext.isEmpty ? bundle.url(forResource: base, withExtension: nil) : bundle.url(forResource: base, withExtension: ext)
++                                if let includeURL = includeURL, let range = Range(match.range, in: text) {
++                                    text.replaceSubrange(range, with: resolvedSource(includeURL))
++                                }
++                            }
++                        }
++                        includeCache[name] = text
++                        return text
++                    }
++                    let combined = metalURLs.map { resolvedSource($0) }.joined(separator: "\n")
++                    NSLog("[tgbuild-metal] runtime compile: %d chars of combined source", combined.count)
++                    do {
++                        library = try device.makeLibrary(source: combined, options: nil)
++                        NSLog("[tgbuild-metal] runtime compile: success")
++                    } catch {
++                        NSLog("[tgbuild-metal] runtime compile FAILED: \(error)")
++                    }
++                }
++            }
++            #endif
+             #else
+             library = try? device.makeDefaultLibrary(bundle: Bundle.module)
+             #endif
+@@ -820,19 +862,23 @@ public final class MetalEngine {
+             self.library = lib
+             
+             guard let vertexFunction = lib.makeFunction(name: "clearVertex") else {
++                NSLog("[tgbuild-metal] clearVertex function missing")
+                 return nil
+             }
+             guard let fragmentFunction = lib.makeFunction(name: "clearFragment") else {
++                NSLog("[tgbuild-metal] clearFragment function missing")
+                 return nil
+             }
+-            
++
+             let pipelineDescriptor = MTLRenderPipelineDescriptor()
+             pipelineDescriptor.vertexFunction = vertexFunction
+             pipelineDescriptor.fragmentFunction = fragmentFunction
+             pipelineDescriptor.colorAttachments[0].pixelFormat = .bgra8Unorm
+             guard let clearPipelineState = pipelineCache.makeRenderPipelineState(descriptor: pipelineDescriptor) else {
++                NSLog("[tgbuild-metal] clear pipeline state failed")
+                 return nil
+             }
++            NSLog("[tgbuild-metal] MetalEngine.Impl initialized ok")
+             self.clearPipelineState = clearPipelineState
+             
+             #if targetEnvironment(simulator)
+diff --git a/submodules/PremiumUI/Sources/DataRainView.swift b/submodules/PremiumUI/Sources/DataRainView.swift
+index 3aad07bb0d..954171386b 100644
+--- a/submodules/PremiumUI/Sources/DataRainView.swift
++++ b/submodules/PremiumUI/Sources/DataRainView.swift
+@@ -35,7 +35,13 @@ public final class MatrixView: MTKView, MTKViewDelegate, PhoneDemoDecorationView
+             return nil
+         }
+ 
+-        guard let defaultLibrary = try? device.makeDefaultLibrary(bundle: bundle) else {
++        var defaultLibrary = try? device.makeDefaultLibrary(bundle: bundle)
++        #if TGBUILD
++        if defaultLibrary == nil {
++            defaultLibrary = tgBuildCompiledMetalLibrary(device: device, bundle: bundle)
++        }
++        #endif
++        guard let defaultLibrary = defaultLibrary else {
+             return nil
+         }
+ 
+@@ -177,3 +183,43 @@ public final class MatrixView: MTKView, MTKViewDelegate, PhoneDemoDecorationView
+         commandBuffer.commit()
+     }
+ }
++
++#if TGBUILD
++private func tgBuildCompiledMetalLibrary(device: MTLDevice, bundle: Bundle) -> MTLLibrary? {
++    // The Linux package carries the module's .metal sources without a compiled
++    // default.metallib: inline #include "…" from bundle files and compile at
++    // runtime (the MetalEngine TGBUILD pattern).
++    let metalURLs = ((try? FileManager.default.contentsOfDirectory(at: bundle.bundleURL, includingPropertiesForKeys: nil)) ?? [])
++        .filter { $0.pathExtension == "metal" }
++        .sorted { $0.lastPathComponent < $1.lastPathComponent }
++    guard !metalURLs.isEmpty else {
++        return nil
++    }
++    var cache: [String: String] = [:]
++    func resolvedSource(_ url: URL) -> String {
++        let name = url.lastPathComponent
++        if let cached = cache[name] {
++            return cached
++        }
++        var text = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
++        if let regex = try? NSRegularExpression(pattern: "#include\\s*\"([^\"]+)\"") {
++            for match in regex.matches(in: text, range: NSRange(text.startIndex..., in: text)).reversed() {
++                let includeName = (text as NSString).substring(with: match.range(at: 1))
++                let base = (includeName as NSString).deletingPathExtension
++                let ext = (includeName as NSString).pathExtension
++                let includeURL = ext.isEmpty ? bundle.url(forResource: base, withExtension: nil) : bundle.url(forResource: base, withExtension: ext)
++                guard let includeURL = includeURL else {
++                    continue
++                }
++                if let range = Range(match.range, in: text) {
++                    text.replaceSubrange(range, with: resolvedSource(includeURL))
++                }
++            }
++        }
++        cache[name] = text
++        return text
++    }
++    let combined = metalURLs.map { resolvedSource($0) }.joined(separator: "\n")
++    return try? device.makeLibrary(source: combined, options: nil)
++}
++#endif
+diff --git a/submodules/TelegramCallsUI/Sources/TelegramCallsUIMetalLibrary.swift b/submodules/TelegramCallsUI/Sources/TelegramCallsUIMetalLibrary.swift
+index 37f9ef2fcd..57b6456983 100644
+--- a/submodules/TelegramCallsUI/Sources/TelegramCallsUIMetalLibrary.swift
++++ b/submodules/TelegramCallsUI/Sources/TelegramCallsUIMetalLibrary.swift
+@@ -22,9 +22,55 @@ func telegramCallsUIMetalLibrary(device: MTLDevice) -> MTLLibrary? {
+     guard let path = mainBundle.path(forResource: "TelegramCallsUIBundle", ofType: "bundle"), let bundle = Bundle(path: path) else {
+         return nil
+     }
+-    guard let library = try? device.makeDefaultLibrary(bundle: bundle) else {
++    var library = try? device.makeDefaultLibrary(bundle: bundle)
++    #if TGBUILD
++    if library == nil {
++        library = tgBuildCompiledMetalLibrary(device: device, bundle: bundle)
++    }
++    #endif
++    guard let library = library else {
+         return nil
+     }
+     metalLibraryValue = (device, library)
+     return library
+ }
++
++#if TGBUILD
++private func tgBuildCompiledMetalLibrary(device: MTLDevice, bundle: Bundle) -> MTLLibrary? {
++    // The Linux package carries the module's .metal sources without a compiled
++    // default.metallib: inline #include "…" from bundle files and compile at
++    // runtime (the MetalEngine TGBUILD pattern).
++    let metalURLs = ((try? FileManager.default.contentsOfDirectory(at: bundle.bundleURL, includingPropertiesForKeys: nil)) ?? [])
++        .filter { $0.pathExtension == "metal" }
++        .sorted { $0.lastPathComponent < $1.lastPathComponent }
++    guard !metalURLs.isEmpty else {
++        return nil
++    }
++    var cache: [String: String] = [:]
++    func resolvedSource(_ url: URL) -> String {
++        let name = url.lastPathComponent
++        if let cached = cache[name] {
++            return cached
++        }
++        var text = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
++        if let regex = try? NSRegularExpression(pattern: "#include\\s*\"([^\"]+)\"") {
++            for match in regex.matches(in: text, range: NSRange(text.startIndex..., in: text)).reversed() {
++                let includeName = (text as NSString).substring(with: match.range(at: 1))
++                let base = (includeName as NSString).deletingPathExtension
++                let ext = (includeName as NSString).pathExtension
++                let includeURL = ext.isEmpty ? bundle.url(forResource: base, withExtension: nil) : bundle.url(forResource: base, withExtension: ext)
++                guard let includeURL = includeURL else {
++                    continue
++                }
++                if let range = Range(match.range, in: text) {
++                    text.replaceSubrange(range, with: resolvedSource(includeURL))
++                }
++            }
++        }
++        cache[name] = text
++        return text
++    }
++    let combined = metalURLs.map { resolvedSource($0) }.joined(separator: "\n")
++    return try? device.makeLibrary(source: combined, options: nil)
++}
++#endif
+diff --git a/submodules/TelegramUI/Components/Calls/CallScreen/Sources/CallScreen.swift b/submodules/TelegramUI/Components/Calls/CallScreen/Sources/CallScreen.swift
+index 6566d2eb64..05381e32d0 100644
+--- a/submodules/TelegramUI/Components/Calls/CallScreen/Sources/CallScreen.swift
++++ b/submodules/TelegramUI/Components/Calls/CallScreen/Sources/CallScreen.swift
+@@ -19,10 +19,56 @@ func metalLibrary(device: MTLDevice) -> MTLLibrary? {
+     guard let bundle = Bundle(path: path) else {
+         return nil
+     }
+-    guard let library = try? device.makeDefaultLibrary(bundle: bundle) else {
++    var library = try? device.makeDefaultLibrary(bundle: bundle)
++    #if TGBUILD
++    if library == nil {
++        library = tgBuildCompiledMetalLibrary(device: device, bundle: bundle)
++    }
++    #endif
++    guard let library = library else {
+         return nil
+     }
+     
+     metalLibraryValue = library
+     return library
+ }
++
++#if TGBUILD
++private func tgBuildCompiledMetalLibrary(device: MTLDevice, bundle: Bundle) -> MTLLibrary? {
++    // The Linux package carries the module's .metal sources without a compiled
++    // default.metallib: inline #include "…" from bundle files and compile at
++    // runtime (the MetalEngine TGBUILD pattern).
++    let metalURLs = ((try? FileManager.default.contentsOfDirectory(at: bundle.bundleURL, includingPropertiesForKeys: nil)) ?? [])
++        .filter { $0.pathExtension == "metal" }
++        .sorted { $0.lastPathComponent < $1.lastPathComponent }
++    guard !metalURLs.isEmpty else {
++        return nil
++    }
++    var cache: [String: String] = [:]
++    func resolvedSource(_ url: URL) -> String {
++        let name = url.lastPathComponent
++        if let cached = cache[name] {
++            return cached
++        }
++        var text = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
++        if let regex = try? NSRegularExpression(pattern: "#include\\s*\"([^\"]+)\"") {
++            for match in regex.matches(in: text, range: NSRange(text.startIndex..., in: text)).reversed() {
++                let includeName = (text as NSString).substring(with: match.range(at: 1))
++                let base = (includeName as NSString).deletingPathExtension
++                let ext = (includeName as NSString).pathExtension
++                let includeURL = ext.isEmpty ? bundle.url(forResource: base, withExtension: nil) : bundle.url(forResource: base, withExtension: ext)
++                guard let includeURL = includeURL else {
++                    continue
++                }
++                if let range = Range(match.range, in: text) {
++                    text.replaceSubrange(range, with: resolvedSource(includeURL))
++                }
++            }
++        }
++        cache[name] = text
++        return text
++    }
++    let combined = metalURLs.map { resolvedSource($0) }.joined(separator: "\n")
++    return try? device.makeLibrary(source: combined, options: nil)
++}
++#endif
+diff --git a/submodules/TelegramUI/Components/CameraScreen/Sources/CameraMetalLibrary.swift b/submodules/TelegramUI/Components/CameraScreen/Sources/CameraMetalLibrary.swift
+index 87edbe00bc..ad699c7c66 100644
+--- a/submodules/TelegramUI/Components/CameraScreen/Sources/CameraMetalLibrary.swift
++++ b/submodules/TelegramUI/Components/CameraScreen/Sources/CameraMetalLibrary.swift
+@@ -19,10 +19,56 @@ func metalLibrary(device: MTLDevice) -> MTLLibrary? {
+     guard let bundle = Bundle(path: path) else {
+         return nil
+     }
+-    guard let library = try? device.makeDefaultLibrary(bundle: bundle) else {
++    var library = try? device.makeDefaultLibrary(bundle: bundle)
++    #if TGBUILD
++    if library == nil {
++        library = tgBuildCompiledMetalLibrary(device: device, bundle: bundle)
++    }
++    #endif
++    guard let library = library else {
+         return nil
+     }
+     
+     metalLibraryValue = library
+     return library
+ }
++
++#if TGBUILD
++private func tgBuildCompiledMetalLibrary(device: MTLDevice, bundle: Bundle) -> MTLLibrary? {
++    // The Linux package carries the module's .metal sources without a compiled
++    // default.metallib: inline #include "…" from bundle files and compile at
++    // runtime (the MetalEngine TGBUILD pattern).
++    let metalURLs = ((try? FileManager.default.contentsOfDirectory(at: bundle.bundleURL, includingPropertiesForKeys: nil)) ?? [])
++        .filter { $0.pathExtension == "metal" }
++        .sorted { $0.lastPathComponent < $1.lastPathComponent }
++    guard !metalURLs.isEmpty else {
++        return nil
++    }
++    var cache: [String: String] = [:]
++    func resolvedSource(_ url: URL) -> String {
++        let name = url.lastPathComponent
++        if let cached = cache[name] {
++            return cached
++        }
++        var text = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
++        if let regex = try? NSRegularExpression(pattern: "#include\\s*\"([^\"]+)\"") {
++            for match in regex.matches(in: text, range: NSRange(text.startIndex..., in: text)).reversed() {
++                let includeName = (text as NSString).substring(with: match.range(at: 1))
++                let base = (includeName as NSString).deletingPathExtension
++                let ext = (includeName as NSString).pathExtension
++                let includeURL = ext.isEmpty ? bundle.url(forResource: base, withExtension: nil) : bundle.url(forResource: base, withExtension: ext)
++                guard let includeURL = includeURL else {
++                    continue
++                }
++                if let range = Range(match.range, in: text) {
++                    text.replaceSubrange(range, with: resolvedSource(includeURL))
++                }
++            }
++        }
++        cache[name] = text
++        return text
++    }
++    let combined = metalURLs.map { resolvedSource($0) }.joined(separator: "\n")
++    return try? device.makeLibrary(source: combined, options: nil)
++}
++#endif
+diff --git a/submodules/TelegramUI/Components/DustEffect/Sources/DustEffectLayer.swift b/submodules/TelegramUI/Components/DustEffect/Sources/DustEffectLayer.swift
+index f229b80d17..8ccfb159e6 100644
+--- a/submodules/TelegramUI/Components/DustEffect/Sources/DustEffectLayer.swift
++++ b/submodules/TelegramUI/Components/DustEffect/Sources/DustEffectLayer.swift
+@@ -54,7 +54,13 @@ func metalLibrary(device: MTLDevice) -> MTLLibrary? {
+     guard let bundle = Bundle(path: path) else {
+         return nil
+     }
+-    guard let library = try? device.makeDefaultLibrary(bundle: bundle) else {
++    var library = try? device.makeDefaultLibrary(bundle: bundle)
++    #if TGBUILD
++    if library == nil {
++        library = tgBuildCompiledMetalLibrary(device: device, bundle: bundle)
++    }
++    #endif
++    guard let library = library else {
+         return nil
+     }
+     
+@@ -424,3 +430,43 @@ public final class DustEffectLayer: MetalEngineSubjectLayer, MetalEngineSubject
+         })
+     }
+ }
++
++#if TGBUILD
++private func tgBuildCompiledMetalLibrary(device: MTLDevice, bundle: Bundle) -> MTLLibrary? {
++    // The Linux package carries the module's .metal sources without a compiled
++    // default.metallib: inline #include "…" from bundle files and compile at
++    // runtime (the MetalEngine TGBUILD pattern).
++    let metalURLs = ((try? FileManager.default.contentsOfDirectory(at: bundle.bundleURL, includingPropertiesForKeys: nil)) ?? [])
++        .filter { $0.pathExtension == "metal" }
++        .sorted { $0.lastPathComponent < $1.lastPathComponent }
++    guard !metalURLs.isEmpty else {
++        return nil
++    }
++    var cache: [String: String] = [:]
++    func resolvedSource(_ url: URL) -> String {
++        let name = url.lastPathComponent
++        if let cached = cache[name] {
++            return cached
++        }
++        var text = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
++        if let regex = try? NSRegularExpression(pattern: "#include\\s*\"([^\"]+)\"") {
++            for match in regex.matches(in: text, range: NSRange(text.startIndex..., in: text)).reversed() {
++                let includeName = (text as NSString).substring(with: match.range(at: 1))
++                let base = (includeName as NSString).deletingPathExtension
++                let ext = (includeName as NSString).pathExtension
++                let includeURL = ext.isEmpty ? bundle.url(forResource: base, withExtension: nil) : bundle.url(forResource: base, withExtension: ext)
++                guard let includeURL = includeURL else {
++                    continue
++                }
++                if let range = Range(match.range, in: text) {
++                    text.replaceSubrange(range, with: resolvedSource(includeURL))
++                }
++            }
++        }
++        cache[name] = text
++        return text
++    }
++    let combined = metalURLs.map { resolvedSource($0) }.joined(separator: "\n")
++    return try? device.makeLibrary(source: combined, options: nil)
++}
++#endif
+diff --git a/submodules/TelegramUI/Components/LiquidGlassShapes/Sources/LiquidGlassShapesPipelines.swift b/submodules/TelegramUI/Components/LiquidGlassShapes/Sources/LiquidGlassShapesPipelines.swift
+index 9d38cb76a5..42fffa96c0 100644
+--- a/submodules/TelegramUI/Components/LiquidGlassShapes/Sources/LiquidGlassShapesPipelines.swift
++++ b/submodules/TelegramUI/Components/LiquidGlassShapes/Sources/LiquidGlassShapesPipelines.swift
+@@ -22,7 +22,13 @@ private func liquidGlassShapesMetalLibrary(device: MTLDevice) -> MTLLibrary? {
+     guard let path = mainBundle.path(forResource: "LiquidGlassShapesMetalSourcesBundle", ofType: "bundle"), let bundle = Bundle(path: path) else {
+         return nil
+     }
+-    guard let library = try? device.makeDefaultLibrary(bundle: bundle) else {
++    var library = try? device.makeDefaultLibrary(bundle: bundle)
++    #if TGBUILD
++    if library == nil {
++        library = tgBuildCompiledMetalLibrary(device: device, bundle: bundle)
++    }
++    #endif
++    guard let library = library else {
+         return nil
+     }
+     metalLibraryValue = (device, library)
+@@ -214,3 +220,43 @@ final class LiquidGlassShapesComputeState<Kind: LiquidGlassShapesKind>: ComputeS
+         self.pipelineState = pipelineState
+     }
+ }
++
++#if TGBUILD
++private func tgBuildCompiledMetalLibrary(device: MTLDevice, bundle: Bundle) -> MTLLibrary? {
++    // The Linux package carries the module's .metal sources without a compiled
++    // default.metallib: inline #include "…" from bundle files and compile at
++    // runtime (the MetalEngine TGBUILD pattern).
++    let metalURLs = ((try? FileManager.default.contentsOfDirectory(at: bundle.bundleURL, includingPropertiesForKeys: nil)) ?? [])
++        .filter { $0.pathExtension == "metal" }
++        .sorted { $0.lastPathComponent < $1.lastPathComponent }
++    guard !metalURLs.isEmpty else {
++        return nil
++    }
++    var cache: [String: String] = [:]
++    func resolvedSource(_ url: URL) -> String {
++        let name = url.lastPathComponent
++        if let cached = cache[name] {
++            return cached
++        }
++        var text = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
++        if let regex = try? NSRegularExpression(pattern: "#include\\s*\"([^\"]+)\"") {
++            for match in regex.matches(in: text, range: NSRange(text.startIndex..., in: text)).reversed() {
++                let includeName = (text as NSString).substring(with: match.range(at: 1))
++                let base = (includeName as NSString).deletingPathExtension
++                let ext = (includeName as NSString).pathExtension
++                let includeURL = ext.isEmpty ? bundle.url(forResource: base, withExtension: nil) : bundle.url(forResource: base, withExtension: ext)
++                guard let includeURL = includeURL else {
++                    continue
++                }
++                if let range = Range(match.range, in: text) {
++                    text.replaceSubrange(range, with: resolvedSource(includeURL))
++                }
++            }
++        }
++        cache[name] = text
++        return text
++    }
++    let combined = metalURLs.map { resolvedSource($0) }.joined(separator: "\n")
++    return try? device.makeLibrary(source: combined, options: nil)
++}
++#endif
+diff --git a/submodules/TelegramUI/Components/MediaEditor/Sources/MediaEditorRenderer.swift b/submodules/TelegramUI/Components/MediaEditor/Sources/MediaEditorRenderer.swift
+index 7ce1042186..6fae83135d 100644
+--- a/submodules/TelegramUI/Components/MediaEditor/Sources/MediaEditorRenderer.swift
++++ b/submodules/TelegramUI/Components/MediaEditor/Sources/MediaEditorRenderer.swift
+@@ -143,7 +143,13 @@ final class MediaEditorRenderer {
+             return
+         }
+         
+-        guard let library = try? device.makeDefaultLibrary(bundle: bundle) else {
++        var library = try? device.makeDefaultLibrary(bundle: bundle)
++        #if TGBUILD
++        if library == nil {
++            library = tgBuildCompiledMetalLibrary(device: device, bundle: bundle)
++        }
++        #endif
++        guard let library = library else {
+             return
+         }
+         self.library = library
+@@ -410,3 +416,43 @@ final class MediaEditorRenderer {
+         }
+     }
+ }
++
++#if TGBUILD
++private func tgBuildCompiledMetalLibrary(device: MTLDevice, bundle: Bundle) -> MTLLibrary? {
++    // The Linux package carries the module's .metal sources without a compiled
++    // default.metallib: inline #include "…" from bundle files and compile at
++    // runtime (the MetalEngine TGBUILD pattern).
++    let metalURLs = ((try? FileManager.default.contentsOfDirectory(at: bundle.bundleURL, includingPropertiesForKeys: nil)) ?? [])
++        .filter { $0.pathExtension == "metal" }
++        .sorted { $0.lastPathComponent < $1.lastPathComponent }
++    guard !metalURLs.isEmpty else {
++        return nil
++    }
++    var cache: [String: String] = [:]
++    func resolvedSource(_ url: URL) -> String {
++        let name = url.lastPathComponent
++        if let cached = cache[name] {
++            return cached
++        }
++        var text = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
++        if let regex = try? NSRegularExpression(pattern: "#include\\s*\"([^\"]+)\"") {
++            for match in regex.matches(in: text, range: NSRange(text.startIndex..., in: text)).reversed() {
++                let includeName = (text as NSString).substring(with: match.range(at: 1))
++                let base = (includeName as NSString).deletingPathExtension
++                let ext = (includeName as NSString).pathExtension
++                let includeURL = ext.isEmpty ? bundle.url(forResource: base, withExtension: nil) : bundle.url(forResource: base, withExtension: ext)
++                guard let includeURL = includeURL else {
++                    continue
++                }
++                if let range = Range(match.range, in: text) {
++                    text.replaceSubrange(range, with: resolvedSource(includeURL))
++                }
++            }
++        }
++        cache[name] = text
++        return text
++    }
++    let combined = metalURLs.map { resolvedSource($0) }.joined(separator: "\n")
++    return try? device.makeLibrary(source: combined, options: nil)
++}
++#endif
+diff --git a/submodules/TelegramUI/Components/Premium/PremiumDiamondComponent/Sources/InteractiveDiamond/DiamondRenderer.swift b/submodules/TelegramUI/Components/Premium/PremiumDiamondComponent/Sources/InteractiveDiamond/DiamondRenderer.swift
+index d6a3b35cce..a2d18e65e1 100644
+--- a/submodules/TelegramUI/Components/Premium/PremiumDiamondComponent/Sources/InteractiveDiamond/DiamondRenderer.swift
++++ b/submodules/TelegramUI/Components/Premium/PremiumDiamondComponent/Sources/InteractiveDiamond/DiamondRenderer.swift
+@@ -12,8 +12,16 @@ func metalLibrary(device: MTLDevice) -> MTLLibrary? {
+ 
+     let mainBundle = Bundle(for: InteractiveDiamondLayer.self)
+     guard let path = mainBundle.path(forResource: "PremiumDiamondComponentBundle", ofType: "bundle"),
+-          let bundle = Bundle(path: path),
+-          let library = try? device.makeDefaultLibrary(bundle: bundle) else {
++          let bundle = Bundle(path: path) else {
++        return nil
++    }
++    var library = try? device.makeDefaultLibrary(bundle: bundle)
++    #if TGBUILD
++    if library == nil {
++        library = tgBuildCompiledMetalLibrary(device: device, bundle: bundle)
++    }
++    #endif
++    guard let library = library else {
+         return nil
+     }
+ 
+@@ -477,3 +485,43 @@ final class DiamondRenderer: ComputeState {
+         }
+     }
+ }
++
++#if TGBUILD
++private func tgBuildCompiledMetalLibrary(device: MTLDevice, bundle: Bundle) -> MTLLibrary? {
++    // The Linux package carries the module's .metal sources without a compiled
++    // default.metallib: inline #include "…" from bundle files and compile at
++    // runtime (the MetalEngine TGBUILD pattern).
++    let metalURLs = ((try? FileManager.default.contentsOfDirectory(at: bundle.bundleURL, includingPropertiesForKeys: nil)) ?? [])
++        .filter { $0.pathExtension == "metal" }
++        .sorted { $0.lastPathComponent < $1.lastPathComponent }
++    guard !metalURLs.isEmpty else {
++        return nil
++    }
++    var cache: [String: String] = [:]
++    func resolvedSource(_ url: URL) -> String {
++        let name = url.lastPathComponent
++        if let cached = cache[name] {
++            return cached
++        }
++        var text = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
++        if let regex = try? NSRegularExpression(pattern: "#include\\s*\"([^\"]+)\"") {
++            for match in regex.matches(in: text, range: NSRange(text.startIndex..., in: text)).reversed() {
++                let includeName = (text as NSString).substring(with: match.range(at: 1))
++                let base = (includeName as NSString).deletingPathExtension
++                let ext = (includeName as NSString).pathExtension
++                let includeURL = ext.isEmpty ? bundle.url(forResource: base, withExtension: nil) : bundle.url(forResource: base, withExtension: ext)
++                guard let includeURL = includeURL else {
++                    continue
++                }
++                if let range = Range(match.range, in: text) {
++                    text.replaceSubrange(range, with: resolvedSource(includeURL))
++                }
++            }
++        }
++        cache[name] = text
++        return text
++    }
++    let combined = metalURLs.map { resolvedSource($0) }.joined(separator: "\n")
++    return try? device.makeLibrary(source: combined, options: nil)
++}
++#endif
+diff --git a/submodules/TelegramUI/Components/QrStudioScreen/Sources/QrStudioMetal.swift b/submodules/TelegramUI/Components/QrStudioScreen/Sources/QrStudioMetal.swift
+index 2f4cb01f97..afab09896c 100644
+--- a/submodules/TelegramUI/Components/QrStudioScreen/Sources/QrStudioMetal.swift
++++ b/submodules/TelegramUI/Components/QrStudioScreen/Sources/QrStudioMetal.swift
+@@ -18,10 +18,56 @@ func qrStudioMetalLibrary(device: MTLDevice) -> MTLLibrary? {
+     guard let bundle = Bundle(path: path) else {
+         return nil
+     }
+-    guard let library = try? device.makeDefaultLibrary(bundle: bundle) else {
++    var library = try? device.makeDefaultLibrary(bundle: bundle)
++    #if TGBUILD
++    if library == nil {
++        library = tgBuildCompiledMetalLibrary(device: device, bundle: bundle)
++    }
++    #endif
++    guard let library = library else {
+         return nil
+     }
+ 
+     metalLibraryValue = library
+     return library
+ }
++
++#if TGBUILD
++private func tgBuildCompiledMetalLibrary(device: MTLDevice, bundle: Bundle) -> MTLLibrary? {
++    // The Linux package carries the module's .metal sources without a compiled
++    // default.metallib: inline #include "…" from bundle files and compile at
++    // runtime (the MetalEngine TGBUILD pattern).
++    let metalURLs = ((try? FileManager.default.contentsOfDirectory(at: bundle.bundleURL, includingPropertiesForKeys: nil)) ?? [])
++        .filter { $0.pathExtension == "metal" }
++        .sorted { $0.lastPathComponent < $1.lastPathComponent }
++    guard !metalURLs.isEmpty else {
++        return nil
++    }
++    var cache: [String: String] = [:]
++    func resolvedSource(_ url: URL) -> String {
++        let name = url.lastPathComponent
++        if let cached = cache[name] {
++            return cached
++        }
++        var text = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
++        if let regex = try? NSRegularExpression(pattern: "#include\\s*\"([^\"]+)\"") {
++            for match in regex.matches(in: text, range: NSRange(text.startIndex..., in: text)).reversed() {
++                let includeName = (text as NSString).substring(with: match.range(at: 1))
++                let base = (includeName as NSString).deletingPathExtension
++                let ext = (includeName as NSString).pathExtension
++                let includeURL = ext.isEmpty ? bundle.url(forResource: base, withExtension: nil) : bundle.url(forResource: base, withExtension: ext)
++                guard let includeURL = includeURL else {
++                    continue
++                }
++                if let range = Range(match.range, in: text) {
++                    text.replaceSubrange(range, with: resolvedSource(includeURL))
++                }
++            }
++        }
++        cache[name] = text
++        return text
++    }
++    let combined = metalURLs.map { resolvedSource($0) }.joined(separator: "\n")
++    return try? device.makeLibrary(source: combined, options: nil)
++}
++#endif
+diff --git a/submodules/TelegramUI/Components/Stories/StoryPeerListComponent/Sources/StoryComposeLayer.swift b/submodules/TelegramUI/Components/Stories/StoryPeerListComponent/Sources/StoryComposeLayer.swift
+index 09556c37d8..74656e5607 100644
+--- a/submodules/TelegramUI/Components/Stories/StoryPeerListComponent/Sources/StoryComposeLayer.swift
++++ b/submodules/TelegramUI/Components/Stories/StoryPeerListComponent/Sources/StoryComposeLayer.swift
+@@ -20,7 +20,13 @@ func metalLibrary(device: MTLDevice) -> MTLLibrary? {
+     guard let bundle = Bundle(path: path) else {
+         return nil
+     }
+-    guard let library = try? device.makeDefaultLibrary(bundle: bundle) else {
++    var library = try? device.makeDefaultLibrary(bundle: bundle)
++    #if TGBUILD
++    if library == nil {
++        library = tgBuildCompiledMetalLibrary(device: device, bundle: bundle)
++    }
++    #endif
++    guard let library = library else {
+         return nil
+     }
+     
+@@ -424,3 +430,43 @@ private func generateAddLabel(strings: PresentationStrings,  color: UIColor) ->
+         UIGraphicsPopContext()
+     })
+ }
++
++#if TGBUILD
++private func tgBuildCompiledMetalLibrary(device: MTLDevice, bundle: Bundle) -> MTLLibrary? {
++    // The Linux package carries the module's .metal sources without a compiled
++    // default.metallib: inline #include "…" from bundle files and compile at
++    // runtime (the MetalEngine TGBUILD pattern).
++    let metalURLs = ((try? FileManager.default.contentsOfDirectory(at: bundle.bundleURL, includingPropertiesForKeys: nil)) ?? [])
++        .filter { $0.pathExtension == "metal" }
++        .sorted { $0.lastPathComponent < $1.lastPathComponent }
++    guard !metalURLs.isEmpty else {
++        return nil
++    }
++    var cache: [String: String] = [:]
++    func resolvedSource(_ url: URL) -> String {
++        let name = url.lastPathComponent
++        if let cached = cache[name] {
++            return cached
++        }
++        var text = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
++        if let regex = try? NSRegularExpression(pattern: "#include\\s*\"([^\"]+)\"") {
++            for match in regex.matches(in: text, range: NSRange(text.startIndex..., in: text)).reversed() {
++                let includeName = (text as NSString).substring(with: match.range(at: 1))
++                let base = (includeName as NSString).deletingPathExtension
++                let ext = (includeName as NSString).pathExtension
++                let includeURL = ext.isEmpty ? bundle.url(forResource: base, withExtension: nil) : bundle.url(forResource: base, withExtension: ext)
++                guard let includeURL = includeURL else {
++                    continue
++                }
++                if let range = Range(match.range, in: text) {
++                    text.replaceSubrange(range, with: resolvedSource(includeURL))
++                }
++            }
++        }
++        cache[name] = text
++        return text
++    }
++    let combined = metalURLs.map { resolvedSource($0) }.joined(separator: "\n")
++    return try? device.makeLibrary(source: combined, options: nil)
++}
++#endif
+diff --git a/submodules/TelegramUI/Components/Wallet/WalletCardComponent/Sources/WalletCardBackgroundView.swift b/submodules/TelegramUI/Components/Wallet/WalletCardComponent/Sources/WalletCardBackgroundView.swift
+index a6c766032b..98cc5fe692 100644
+--- a/submodules/TelegramUI/Components/Wallet/WalletCardComponent/Sources/WalletCardBackgroundView.swift
++++ b/submodules/TelegramUI/Components/Wallet/WalletCardComponent/Sources/WalletCardBackgroundView.swift
+@@ -177,11 +177,19 @@ func walletCardMetalLibrary(device: MTLDevice) -> MTLLibrary? {
+             forResource: "WalletCardComponentMetalSourcesBundle",
+             ofType: "bundle"
+         ),
+-        let resourceBundle = Bundle(path: bundlePath),
+-        let library = try? device.makeDefaultLibrary(bundle: resourceBundle)
++        let resourceBundle = Bundle(path: bundlePath)
+     else {
+         return nil
+     }
++    var library = try? device.makeDefaultLibrary(bundle: resourceBundle)
++    #if TGBUILD
++    if library == nil {
++        library = tgBuildCompiledMetalLibrary(device: device, bundle: resourceBundle)
++    }
++    #endif
++    guard let library = library else {
++        return nil
++    }
+ 
+     walletCardMetalLibraryValue = library
+     return library
+@@ -762,3 +770,43 @@ final class WalletCardBackgroundView: UIView {
+         self.fallbackView.layer.addSublayer(self.fallbackRadialGradient)
+     }
+ }
++
++#if TGBUILD
++private func tgBuildCompiledMetalLibrary(device: MTLDevice, bundle: Bundle) -> MTLLibrary? {
++    // The Linux package carries the module's .metal sources without a compiled
++    // default.metallib: inline #include "…" from bundle files and compile at
++    // runtime (the MetalEngine TGBUILD pattern).
++    let metalURLs = ((try? FileManager.default.contentsOfDirectory(at: bundle.bundleURL, includingPropertiesForKeys: nil)) ?? [])
++        .filter { $0.pathExtension == "metal" }
++        .sorted { $0.lastPathComponent < $1.lastPathComponent }
++    guard !metalURLs.isEmpty else {
++        return nil
++    }
++    var cache: [String: String] = [:]
++    func resolvedSource(_ url: URL) -> String {
++        let name = url.lastPathComponent
++        if let cached = cache[name] {
++            return cached
++        }
++        var text = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
++        if let regex = try? NSRegularExpression(pattern: "#include\\s*\"([^\"]+)\"") {
++            for match in regex.matches(in: text, range: NSRange(text.startIndex..., in: text)).reversed() {
++                let includeName = (text as NSString).substring(with: match.range(at: 1))
++                let base = (includeName as NSString).deletingPathExtension
++                let ext = (includeName as NSString).pathExtension
++                let includeURL = ext.isEmpty ? bundle.url(forResource: base, withExtension: nil) : bundle.url(forResource: base, withExtension: ext)
++                guard let includeURL = includeURL else {
++                    continue
++                }
++                if let range = Range(match.range, in: text) {
++                    text.replaceSubrange(range, with: resolvedSource(includeURL))
++                }
++            }
++        }
++        cache[name] = text
++        return text
++    }
++    let combined = metalURLs.map { resolvedSource($0) }.joined(separator: "\n")
++    return try? device.makeLibrary(source: combined, options: nil)
++}
++#endif
+diff --git a/submodules/TelegramUI/Components/Wallet/WalletSendScreen/Sources/WalletSendAmountCanvas.swift b/submodules/TelegramUI/Components/Wallet/WalletSendScreen/Sources/WalletSendAmountCanvas.swift
+index 8b80c90e67..da81ba8fdd 100644
+--- a/submodules/TelegramUI/Components/Wallet/WalletSendScreen/Sources/WalletSendAmountCanvas.swift
++++ b/submodules/TelegramUI/Components/Wallet/WalletSendScreen/Sources/WalletSendAmountCanvas.swift
+@@ -29,7 +29,14 @@ private final class WalletSendAmountMetal {
+     private init?() {
+         let device = MetalEngine.shared.device
+         guard let url = Bundle(for: WalletSendAmountCanvas.self).url(forResource: "WalletSendAmountMetalSourcesBundle", withExtension: "bundle"),
+-              let bundle = Bundle(url: url), let library = try? device.makeDefaultLibrary(bundle: bundle),
++              let bundle = Bundle(url: url) else { return nil }
++        var library = try? device.makeDefaultLibrary(bundle: bundle)
++        #if TGBUILD
++        if library == nil {
++            library = tgBuildCompiledMetalLibrary(device: device, bundle: bundle)
++        }
++        #endif
++        guard let library = library,
+               let vertex = library.makeFunction(name: "walletAmountVertex"),
+               let layerVertex = library.makeFunction(name: "walletAmountLayerVertex"),
+               let fragment = library.makeFunction(name: "walletAmountFragment"),
+@@ -568,3 +575,43 @@ final class WalletSendAmountGlyphAtlas {
+         return masks[GlyphKey(text: glyph.text, font: glyph.font)]
+     }
+ }
++
++#if TGBUILD
++private func tgBuildCompiledMetalLibrary(device: MTLDevice, bundle: Bundle) -> MTLLibrary? {
++    // The Linux package carries the module's .metal sources without a compiled
++    // default.metallib: inline #include "…" from bundle files and compile at
++    // runtime (the MetalEngine TGBUILD pattern).
++    let metalURLs = ((try? FileManager.default.contentsOfDirectory(at: bundle.bundleURL, includingPropertiesForKeys: nil)) ?? [])
++        .filter { $0.pathExtension == "metal" }
++        .sorted { $0.lastPathComponent < $1.lastPathComponent }
++    guard !metalURLs.isEmpty else {
++        return nil
++    }
++    var cache: [String: String] = [:]
++    func resolvedSource(_ url: URL) -> String {
++        let name = url.lastPathComponent
++        if let cached = cache[name] {
++            return cached
++        }
++        var text = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
++        if let regex = try? NSRegularExpression(pattern: "#include\\s*\"([^\"]+)\"") {
++            for match in regex.matches(in: text, range: NSRange(text.startIndex..., in: text)).reversed() {
++                let includeName = (text as NSString).substring(with: match.range(at: 1))
++                let base = (includeName as NSString).deletingPathExtension
++                let ext = (includeName as NSString).pathExtension
++                let includeURL = ext.isEmpty ? bundle.url(forResource: base, withExtension: nil) : bundle.url(forResource: base, withExtension: ext)
++                guard let includeURL = includeURL else {
++                    continue
++                }
++                if let range = Range(match.range, in: text) {
++                    text.replaceSubrange(range, with: resolvedSource(includeURL))
++                }
++            }
++        }
++        cache[name] = text
++        return text
++    }
++    let combined = metalURLs.map { resolvedSource($0) }.joined(separator: "\n")
++    return try? device.makeLibrary(source: combined, options: nil)
++}
++#endif
+-- 
+2.43.0
+

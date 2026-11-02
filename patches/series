@@ -1,0 +1,11 @@
+# Order of application. 0001-0007 apply to the repository root with `git am`.
+# 0008 applies inside the submodules/TgVoipWebrtc/tgcalls submodule checkout
+# (apply-patches.sh handles the directory switch).
+0001-Fixed-Bazel-host-builds-on-x86_64-Linux.patch
+0002-Fixed-third-party-codec-builds-on-x86_64-Linux.patch
+0003-Fixed-MtProtoKit-header-nullability-for-Linux-import.patch
+0004-Added-TGBUILD-compile-hooks-to-Swift-and-ObjC-source.patch
+0005-Added-tgbuild-startup-breadcrumbs-to-app-sources.patch
+0006-Added-TGBUILD-runtime-fallbacks-to-app-startup.patch
+0007-Added-TGBUILD-runtime-Metal-source-compilation.patch
+0008-Fixed-TgVoipWebrtc-build-on-Linux-hosts.patch

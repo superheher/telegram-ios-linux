@@ -1,0 +1,241 @@
+From 1c145cd11f2cd4757b8dd64c36a56b24ec16bbbb Mon Sep 17 00:00:00 2001
+From: superheher <heh@vivaldi.net>
+Date: Mon, 2 Nov 2026 23:19:04 +0300
+Subject: [PATCH 4/7] Added TGBUILD compile hooks to Swift and ObjC sources.
+
+---
+ .../TelegramApi/Sources/TLObjectSupport.swift | 12 ++++++
+ .../Sources/Network/Network.swift             | 41 ++++++++++++++++---
+ .../DocumentCanvasView+EditMenuActions.swift  |  3 ++
+ .../Sources/TabBarComponent.swift             |  3 ++
+ .../TranslateUI/Sources/TranslateScreen.swift |  3 ++
+ .../UIKitRuntimeUtils/UIBarButtonItem+Proxy.h |  7 +++-
+ .../Sources/WebProxyDiagnostics.swift         | 21 ++++++++++
+ .../Sources/WebProxyWebViewCarrier.swift      |  6 ++-
+ 8 files changed, 88 insertions(+), 8 deletions(-)
+
+diff --git a/submodules/TelegramApi/Sources/TLObjectSupport.swift b/submodules/TelegramApi/Sources/TLObjectSupport.swift
+index 8b3cf95e00..a285cca51e 100644
+--- a/submodules/TelegramApi/Sources/TLObjectSupport.swift
++++ b/submodules/TelegramApi/Sources/TLObjectSupport.swift
+@@ -97,6 +97,18 @@ func tlDescribedValue(_ field: TLFieldInfo, _ scalar: UnsafeRawPointer?, _ objec
+ /// enum values, so the logger's type-qualified redaction keys ("User.user") still match.
+ func tlDescriptionFields(_ object: TLObject) -> (String, [(String, ConstructorParameterDescription)]) {
+     var fields: [(String, ConstructorParameterDescription)] = []
++    #if TGBUILD
++    // Some payloads in the Linux build do not answer the @objc tl_constructorInfo
++    // selector, and MTLog's description path is the only consumer — degrade to a
++    // placeholder instead of raising doesNotRecognizeSelector from inside a request.
++    if let nsObject = object as? NSObject {
++        if !nsObject.responds(to: Selector(("tl_constructorInfo"))) {
++            return ("unknown", fields)
++        }
++    } else {
++        return ("unknown", fields)
++    }
++    #endif
+     withUnsafeMutablePointer(to: &fields) { pointer in
+         TLObjectDescribe(object, pointer) { context, field, scalar, value in
+             let fields = context!.assumingMemoryBound(to: [(String, ConstructorParameterDescription)].self)
+diff --git a/submodules/TelegramCore/Sources/Network/Network.swift b/submodules/TelegramCore/Sources/Network/Network.swift
+index 7a8db1d872..6817513726 100644
+--- a/submodules/TelegramCore/Sources/Network/Network.swift
++++ b/submodules/TelegramCore/Sources/Network/Network.swift
+@@ -1534,8 +1534,10 @@ class Keychain: NSObject, MTKeychain {
+         self.remove = remove
+     }
+     
+-    func setObject(_ object: Any!, forKey aKey: String!, group: String!) {
+-        guard let object = object else {
++    func setObject(_ object: Any, forKey aKey: String, group: String) {
++        // tgbuild: the unbridged requirement passes a non-optional id; nil never arrives.
++        let object: Any? = object
++        if object == nil {
+             return
+         }
+         MTContext.perform(objCTry: {
+@@ -1545,7 +1547,32 @@ class Keychain: NSObject, MTKeychain {
+         })
+     }
+     
+-    func dictionary(forKey aKey: String!, group: String!) -> [AnyHashable : Any]? {
++    /// tgbuild: the Linux Swift driver cannot bridge NSDictionary-requirements to
++    /// Dictionary without Apple's apinotes, so the Linux build implements the @objc
++    /// requirement in its unbridged form. Runtime behavior is identical (the same
++    /// unarchived NSDictionary flows to the engine); macOS keeps the bridged signature.
++    #if TGBUILD
++    func dictionary(forKey aKey: String, group: String) -> Any? {
++        // tgbuild: non-optional parameters under the Linux importer
++        let aKey: String? = aKey
++        let group: String? = group
++        guard let aKey = aKey, let group = group else {
++            return nil
++        }
++        if let data = self.get(group + ":" + aKey) {
++            let result = MTDeprecated.unarchiveDeprecated(with: data as Data) as? NSDictionary
++            if let result = result {
++                return result
++            }
++            assertionFailure("Unexpected keychain entry type")
++        }
++        return nil
++    }
++    #else
++    func dictionary(forKey aKey: String, group: String) -> [AnyHashable : Any]? {
++        // tgbuild: non-optional parameters under the Linux importer
++        let aKey: String? = aKey
++        let group: String? = group
+         guard let aKey = aKey, let group = group else {
+             return nil
+         }
+@@ -1559,8 +1586,12 @@ class Keychain: NSObject, MTKeychain {
+         }
+         return nil
+     }
++    #endif
+     
+-    func number(forKey aKey: String!, group: String!) -> NSNumber? {
++    func number(forKey aKey: String, group: String) -> NSNumber? {
++        // tgbuild: non-optional parameters under the Linux importer
++        let aKey: String? = aKey
++        let group: String? = group
+         guard let aKey = aKey, let group = group else {
+             return nil
+         }
+@@ -1575,7 +1606,7 @@ class Keychain: NSObject, MTKeychain {
+         return nil
+     }
+     
+-    func removeObject(forKey aKey: String!, group: String!) {
++    func removeObject(forKey aKey: String, group: String) {
+         self.remove(group + ":" + aKey)
+     }
+ }
+diff --git a/submodules/TelegramUI/Components/RichTextEditor/Sources/RichTextEditorUIKit/Canvas/DocumentCanvasView+EditMenuActions.swift b/submodules/TelegramUI/Components/RichTextEditor/Sources/RichTextEditorUIKit/Canvas/DocumentCanvasView+EditMenuActions.swift
+index a6cf887444..ff9d9b0aba 100644
+--- a/submodules/TelegramUI/Components/RichTextEditor/Sources/RichTextEditorUIKit/Canvas/DocumentCanvasView+EditMenuActions.swift
++++ b/submodules/TelegramUI/Components/RichTextEditor/Sources/RichTextEditorUIKit/Canvas/DocumentCanvasView+EditMenuActions.swift
+@@ -2,6 +2,9 @@
+ import UIKit
+ import SwiftUI
+ import Translation
++// The View.translationPresentation modifier lives in this underscore-prefixed framework;
++// `import Translation` does not re-export it in this toolchain (2026-10-27).
++import _Translation_SwiftUI
+ 
+ /// Rich edit-menu items appended to the system `suggestedActions`. A custom UITextInput view that avoids
+ /// UITextInteraction does NOT get Look Up / Share / a Format submenu for free (those are text-services
+diff --git a/submodules/TelegramUI/Components/TabBarComponent/Sources/TabBarComponent.swift b/submodules/TelegramUI/Components/TabBarComponent/Sources/TabBarComponent.swift
+index 6124e45999..8a826b91ba 100644
+--- a/submodules/TelegramUI/Components/TabBarComponent/Sources/TabBarComponent.swift
++++ b/submodules/TelegramUI/Components/TabBarComponent/Sources/TabBarComponent.swift
+@@ -2,6 +2,9 @@ import Foundation
+ import LottieSettings
+ import UIKit
+ import Display
++// Direct import: SearchBarNode's interface claims the AsyncDisplayKit clang decls
++// and hides them from this module otherwise (2026-10-27 session receipt).
++import AsyncDisplayKit
+ import TelegramPresentationData
+ import ComponentFlow
+ import ComponentDisplayAdapters
+diff --git a/submodules/TranslateUI/Sources/TranslateScreen.swift b/submodules/TranslateUI/Sources/TranslateScreen.swift
+index 8cbde2fedb..e7935f2980 100644
+--- a/submodules/TranslateUI/Sources/TranslateScreen.swift
++++ b/submodules/TranslateUI/Sources/TranslateScreen.swift
+@@ -7,6 +7,9 @@ import SwiftSignalKit
+ import AccountContext
+ import SwiftUI
+ import TelegramUIPreferences
++// The View.translationPresentation modifier lives in this underscore-prefixed framework;
++// `import Translation` does not re-export it in this toolchain (2026-10-27).
++import _Translation_SwiftUI
+ 
+ public func presentTranslateScreen(
+     context: AccountContext,
+diff --git a/submodules/UIKitRuntimeUtils/Source/UIKitRuntimeUtils/UIBarButtonItem+Proxy.h b/submodules/UIKitRuntimeUtils/Source/UIKitRuntimeUtils/UIBarButtonItem+Proxy.h
+index 69b8a6a340..5d326faf3c 100644
+--- a/submodules/UIKitRuntimeUtils/Source/UIKitRuntimeUtils/UIBarButtonItem+Proxy.h
++++ b/submodules/UIKitRuntimeUtils/Source/UIKitRuntimeUtils/UIBarButtonItem+Proxy.h
+@@ -1,5 +1,10 @@
+ #import <UIKit/UIKit.h>
+-#import <AsyncDisplayKit/ASDisplayNode.h>
++
++// Forward declaration, not the import: a public header that pulls in another module's
++// header shadows that module's own declarations when both modules load in one compile
++// (ClangImporter then resolves ASDisplayNode under UIKitRuntimeUtils and hides the real
++// AsyncDisplayKit declarations). Pointer use only, so @class is sufficient.
++@class ASDisplayNode;
+ 
+ typedef void (^UIBarButtonItemSetTitleListener)(NSString *);
+ typedef void (^UIBarButtonItemSetEnabledListener)(BOOL);
+diff --git a/submodules/WebProxyTransport/Sources/WebProxyDiagnostics.swift b/submodules/WebProxyTransport/Sources/WebProxyDiagnostics.swift
+index 7f99f144b5..1a56fca4a9 100644
+--- a/submodules/WebProxyTransport/Sources/WebProxyDiagnostics.swift
++++ b/submodules/WebProxyTransport/Sources/WebProxyDiagnostics.swift
+@@ -1,5 +1,7 @@
+ import Foundation
++#if canImport(os.log)
+ import os.log
++#endif
+ 
+ enum WebProxyCarrierFailure: String {
+     case construction = "webview-construction"
+@@ -21,6 +23,7 @@ enum WebProxyCarrierFailure: String {
+ }
+ 
+ enum WebProxyDiagnostics {
++#if canImport(os.log)
+     private static let log = OSLog(subsystem: "org.telegram.WebProxyTransport", category: "carrier")
+ 
+     static func info(_ event: StaticString) {
+@@ -64,4 +67,22 @@ enum WebProxyDiagnostics {
+             mimeType ?? "none"
+         )
+     }
++#else
++    // Linux build (no os.log module in the SDK-free toolchain): diagnostics drop. The
++    // logging surface here is carrier diagnostics, not user-visible behavior.
++    static func info(_ event: StaticString) {
++    }
++
++    static func failure(_ reason: WebProxyCarrierFailure) {
++    }
++
++    static func pageStatus(_ status: WebProxyPageStatus) {
++    }
++
++    static func navigationFailure(_ error: Error) {
++    }
++
++    static func rejectedResponse(statusCode: Int?, mimeType: String?) {
++    }
++#endif
+ }
+diff --git a/submodules/WebProxyTransport/Sources/WebProxyWebViewCarrier.swift b/submodules/WebProxyTransport/Sources/WebProxyWebViewCarrier.swift
+index 30fadaaff1..92c223fffd 100644
+--- a/submodules/WebProxyTransport/Sources/WebProxyWebViewCarrier.swift
++++ b/submodules/WebProxyTransport/Sources/WebProxyWebViewCarrier.swift
+@@ -381,7 +381,8 @@ final class WebProxyWebViewCarrier: NSObject, WKNavigationDelegate, WKUIDelegate
+     /// Geolocation. Public from iOS 27 / macOS 27; below that WebKit decides without
+     /// asking the app, and `navigator.geolocation` being shimmed away is what stops the
+     /// page from reaching it.
+-    @available(macOS 27.0, iOS 27.0, *)
++    /// WebKit calls it only from its own iOS 27 build, so runtime behavior is unchanged.
++    @available(iOS 27.0, *)
+     func webView(_ webView: WKWebView, requestGeolocationPermissionFor origin: WKSecurityOrigin, initiatedByFrame frame: WKFrameInfo, decisionHandler: @escaping (WKPermissionDecision) -> Void) {
+         decisionHandler(.deny)
+     }
+@@ -390,7 +391,8 @@ final class WebProxyWebViewCarrier: NSObject, WKNavigationDelegate, WKUIDelegate
+     /// WebKit documents that NOT implementing it there makes the view "match the file upload
+     /// behavior of Safari" - i.e. present a picker. Returning no URLs is the documented way
+     /// to act as if the user cancelled.
+-    @available(macOS 10.12, iOS 18.4, *)
++    /// WebKit presents the panel itself before 18.4, so the method is simply never called there.
++    @available(iOS 18.4, *)
+     func webView(_ webView: WKWebView, runOpenPanelWith parameters: WKOpenPanelParameters, initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping ([URL]?) -> Void) {
+         completionHandler(nil)
+     }
+-- 
+2.43.0
+

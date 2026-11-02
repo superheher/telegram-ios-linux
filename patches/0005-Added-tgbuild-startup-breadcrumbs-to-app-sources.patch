@@ -1,0 +1,193 @@
+From dad8d5a734e39e0eaf4163d18e12148ac621f661 Mon Sep 17 00:00:00 2001
+From: superheher <heh@vivaldi.net>
+Date: Mon, 2 Nov 2026 23:19:06 +0300
+Subject: [PATCH 5/7] Added tgbuild startup breadcrumbs to app sources.
+
+---
+ Telegram/Telegram-iOS/main.m                  | 44 +++++++++++++++++++
+ .../Sources/Node/ChatListNode.swift           | 27 +++++++++++-
+ .../Sources/ApplicationContext.swift          | 14 ++++++
+ .../Sources/ChatControllerNode.swift          | 23 ++++++++++
+ 4 files changed, 107 insertions(+), 1 deletion(-)
+
+diff --git a/Telegram/Telegram-iOS/main.m b/Telegram/Telegram-iOS/main.m
+index 81d976a847..98010743c9 100644
+--- a/Telegram/Telegram-iOS/main.m
++++ b/Telegram/Telegram-iOS/main.m
+@@ -1,7 +1,51 @@
+ #import <UIKit/UIKit.h>
++#import <pthread.h>
++#import <string.h>
++#import <stdio.h>
++
++#if TGBUILD
++// The Linux build links the app binary from raw .o files (link.py); these breadcrumbs
++// make a silent startup failure visible. The device syslog does not carry the app's
++// NSLog output, so the lines also append to Documents/tgbuild-log.txt, which pulls out
++// via `pymobiledevice3 apps pull` (house_arrest).
++static void tglog(NSString *s) {
++    NSString *line = [NSString stringWithFormat:@"%@ [tgbuild] %@\n", [NSDate date], s];
++    NSLog(@"%@", line);
++    NSString *dir = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) firstObject];
++    if (!dir) return;
++    NSString *path = [dir stringByAppendingPathComponent:@"tgbuild-log.txt"];
++    FILE *f = fopen(path.fileSystemRepresentation, "a");
++    if (f) {
++        fwrite(line.UTF8String, 1, strlen(line.UTF8String), f);
++        fclose(f);
++    }
++}
++
++static void *tgbuild_heartbeat(void *arg) {
++    for (int i = 1; ; i++) {
++        sleep(5);
++        tglog([NSString stringWithFormat:@"heartbeat %d", i]);
++    }
++    return NULL;
++}
++#endif
+ 
+ int main(int argc, char *argv[]) {
+     @autoreleasepool {
++#if TGBUILD
++        tglog(@"main: entry");
++        NSString *bundlePath = [[NSBundle mainBundle] bundlePath];
++        tglog([NSString stringWithFormat:@"main: bundle %@", bundlePath]);
++        tglog([NSString stringWithFormat:@"main: classes Application=%@ AppDelegate=%@",
++              NSClassFromString(@"Application") ? @"found" : @"MISSING",
++              NSClassFromString(@"AppDelegate") ? @"found" : @"MISSING"]);
++        NSArray *contents = [[NSFileManager defaultManager]
++                             contentsOfDirectoryAtPath:bundlePath error:nil];
++        tglog([NSString stringWithFormat:@"main: bundle contents %@", contents]);
++        pthread_t hb;
++        pthread_create(&hb, NULL, tgbuild_heartbeat, NULL);
++        tglog(@"main: calling UIApplicationMain");
++#endif
+         return UIApplicationMain(argc, argv, @"Application", @"AppDelegate");
+     }
+ }
+diff --git a/submodules/ChatListUI/Sources/Node/ChatListNode.swift b/submodules/ChatListUI/Sources/Node/ChatListNode.swift
+index 05e8610787..3bca548e80 100644
+--- a/submodules/ChatListUI/Sources/Node/ChatListNode.swift
++++ b/submodules/ChatListUI/Sources/Node/ChatListNode.swift
+@@ -75,6 +75,23 @@ final class ChatListHighlightedLocation: Equatable {
+     }
+ }
+ 
++@objc public final class ChatListNodeDebugLog: NSObject {
++    static var didLogView = false
++    static func log(_ s: String) {
++        let path = (NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true).first ?? "/tmp") + "/tgbuild-log.txt"
++        if !FileManager.default.fileExists(atPath: path) {
++            FileManager.default.createFile(atPath: path, contents: nil)
++        }
++        if let handle = FileHandle(forWritingAtPath: path) {
++            handle.seekToEndOfFile()
++            if let data = "\(Date()) [tgbuild] \(s)\n".data(using: .utf8) {
++                handle.write(data)
++            }
++            try? handle.close()
++        }
++    }
++}
++
+ public final class ChatListNodeInteraction {
+     public enum PeerEntry {
+         case peerId(EnginePeer.Id)
+@@ -2677,7 +2694,12 @@ public final class ChatListNode: ListViewImpl {
+                 forceAllUpdated = true
+             }
+             let presentationData = state.presentationData
+-            
++            #if TGBUILD
++            if !ChatListNodeDebugLog.didLogView {
++                ChatListNodeDebugLog.didLogView = true
++                ChatListNodeDebugLog.log("chat list view update: \(processedView.filteredEntries.count) entries, isLoading=\(processedView.isLoading)")
++            }
++            #endif
+             return preparedChatListNodeViewTransition(from: previousView, to: processedView, reason: reason, previewing: previewing, disableAnimations: disableAnimations, scrollPosition: updatedScrollPosition, searchMode: searchMode, forceAllUpdated: forceAllUpdated)
+             |> map({ mappedChatListNodeViewListTransition(context: context, nodeInteraction: nodeInteraction, location: location, isPremium: accountIsPremium, filterData: filterData, chatListFilters: chatListFilters, mode: mode, isPeerEnabled: isPeerEnabled, presentationData: presentationData, transition: $0) })
+             |> runOn(prepareOnMainQueue ? Queue.mainQueue() : viewProcessingQueue)
+@@ -3339,6 +3361,9 @@ public final class ChatListNode: ListViewImpl {
+     
+     private func enqueueTransition(_ transition: ChatListNodeListViewTransition) -> Signal<Void, NoError> {
+         return Signal { [weak self] subscriber in
++            #if TGBUILD
++            ChatListNodeDebugLog.log("enqueueTransition: \(transition.deleteItems.count) del / \(transition.insertItems.count) ins")
++            #endif
+             if let strongSelf = self {
+                 if let _ = strongSelf.enqueuedTransition {
+                     preconditionFailure()
+diff --git a/submodules/TelegramUI/Sources/ApplicationContext.swift b/submodules/TelegramUI/Sources/ApplicationContext.swift
+index fe34b99844..643faa45d9 100644
+--- a/submodules/TelegramUI/Sources/ApplicationContext.swift
++++ b/submodules/TelegramUI/Sources/ApplicationContext.swift
+@@ -256,10 +256,24 @@ final class AuthorizedApplicationContext {
+         }
+         if let tabsController = self.rootController.viewControllers.first as? TabBarController, !tabsController.controllers.isEmpty, tabsController.selectedIndex >= 0 {
+             let controller = tabsController.controllers[tabsController.selectedIndex]
++            #if TGBUILD
++            tgbuildLog("authorized ctx: tabs ready branch, selected controller \(String(describing: type(of: controller)))")
++            let _ = controller.ready.get().start(next: { _ in
++                tgbuildLog("authorized ctx: selected controller ready fired")
++            })
++            let _ = tabsController.ready.get().start(next: { _ in
++                tgbuildLog("authorized ctx: tabsController ready fired")
++            })
++            #endif
+             let combinedReady = combineLatest(tabsController.ready.get(), controller.ready.get())
+             |> map { $0 && $1 }
+             |> filter { $0 }
+             |> take(1)
++            #if TGBUILD
++            let _ = combinedReady.start(next: { _ in
++                tgbuildLog("authorized ctx: combinedReady completed")
++            })
++            #endif
+             self.isReady.set(combinedReady)
+         } else {
+             self.isReady.set(.single(true))
+diff --git a/submodules/TelegramUI/Sources/ChatControllerNode.swift b/submodules/TelegramUI/Sources/ChatControllerNode.swift
+index ee5838449d..4522a8903c 100644
+--- a/submodules/TelegramUI/Sources/ChatControllerNode.swift
++++ b/submodules/TelegramUI/Sources/ChatControllerNode.swift
+@@ -178,6 +178,22 @@ private final class PendingSwitchToChatLocation {
+ }
+ 
+ class ChatControllerNode: ASDisplayNode, ASScrollViewDelegate {
++    private static var lastLoggedLayoutSignature: String?
++    static func tgBuildLogLayout(_ s: String) {
++        #if TGBUILD
++        let path = (NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true).first ?? "/tmp") + "/tgbuild-log.txt"
++        if !FileManager.default.fileExists(atPath: path) {
++            FileManager.default.createFile(atPath: path, contents: nil)
++        }
++        if let handle = FileHandle(forWritingAtPath: path) {
++            handle.seekToEndOfFile()
++            if let data = "\(Date()) [tgbuild] \(s)\n".data(using: .utf8) {
++                handle.write(data)
++            }
++            try? handle.close()
++        }
++        #endif
++    }
+     let context: AccountContext
+     private(set) var chatLocation: ChatLocation
+     private var chatLocationContextHolder: Atomic<ChatLocationContextHolder?>
+@@ -1201,6 +1217,13 @@ class ChatControllerNode: ASDisplayNode, ASScrollViewDelegate {
+     }
+     
+     func containerLayoutUpdated(_ layout: ContainerViewLayout, navigationBarHeight: CGFloat, transition protoTransition: ContainedViewLayoutTransition, listViewTransaction: (ListViewUpdateSizeAndInsets, CGFloat, Bool, @escaping () -> Void) -> Void, updateExtraNavigationBarBackgroundHeight: (CGFloat, CGFloat, ContainedViewLayoutTransition) -> Void) {
++        #if TGBUILD
++        let layoutSignature = "\(layout.size)|\(layout.safeInsets)|\(layout.metrics.widthClass)|\(layout.deviceMetrics)"
++        if ChatControllerNode.lastLoggedLayoutSignature != layoutSignature {
++            ChatControllerNode.lastLoggedLayoutSignature = layoutSignature
++            ChatControllerNode.tgBuildLogLayout("ChatControllerNode.layout size=\(layout.size) safeInsets=\(layout.safeInsets) widthClass=\(layout.metrics.widthClass) device=\(layout.deviceMetrics)")
++        }
++        #endif
+         let transition: ContainedViewLayoutTransition
+         if let _ = self.scheduledAnimateInAsOverlayFromNode {
+             transition = .immediate
+-- 
+2.43.0
+

@@ -1,0 +1,878 @@
+From 51b610ac249c5e35206ccdc9c5b22c2662996870 Mon Sep 17 00:00:00 2001
+From: superheher <heh@vivaldi.net>
+Date: Mon, 2 Nov 2026 23:19:03 +0300
+Subject: [PATCH 3/7] Fixed MtProtoKit header nullability for Linux importer.
+
+---
+ .../MtProtoKit/MTApiEnvironment.h             |  1 +
+ .../PublicHeaders/MtProtoKit/MTAtomic.h       |  1 +
+ .../MtProtoKit/MTBackupAddressSignals.h       |  1 +
+ .../PublicHeaders/MtProtoKit/MTBag.h          |  1 +
+ .../MtProtoKit/MTBindKeyMessageService.h      |  1 +
+ .../PublicHeaders/MtProtoKit/MTContext.h      |  1 +
+ .../MtProtoKit/MTDatacenterAddress.h          |  1 +
+ .../MtProtoKit/MTDatacenterAddressListData.h  |  1 +
+ .../MtProtoKit/MTDatacenterAddressSet.h       |  1 +
+ .../MtProtoKit/MTDatacenterAuthAction.h       |  1 +
+ .../MtProtoKit/MTDatacenterAuthInfo.h         |  1 +
+ .../MTDatacenterAuthMessageService.h          |  1 +
+ .../MtProtoKit/MTDatacenterSaltInfo.h         |  1 +
+ .../MTDatacenterTransferAuthAction.h          |  1 +
+ .../MtProtoKit/MTDatacenterVerificationData.h |  1 +
+ .../PublicHeaders/MtProtoKit/MTDisposable.h   |  1 +
+ .../MtProtoKit/MTDropResponseContext.h        |  1 +
+ .../PublicHeaders/MtProtoKit/MTEncryption.h   |  1 +
+ .../MtProtoKit/MTExportedAuthorizationData.h  |  1 +
+ .../MtProtoKit/MTExternalActions.h            |  1 +
+ .../PublicHeaders/MtProtoKit/MTGzip.h         |  3 ---
+ .../MtProtoKit/MTHttpRequestOperation.h       |  1 +
+ .../MtProtoKit/MTIncomingMessage.h            |  1 +
+ .../PublicHeaders/MtProtoKit/MTInputStream.h  |  1 +
+ .../PublicHeaders/MtProtoKit/MTInternalId.h   |  1 +
+ .../PublicHeaders/MtProtoKit/MTKeychain.h     | 12 ++++++++++-
+ .../PublicHeaders/MtProtoKit/MTLogging.h      |  1 +
+ .../MtProtoKit/MTMessageEncryptionKey.h       |  1 +
+ .../MtProtoKit/MTMessageService.h             |  1 +
+ .../MtProtoKit/MTMessageTransaction.h         |  1 +
+ .../MtProtoKit/MTNetworkAvailability.h        |  1 +
+ .../MTNetworkUsageCalculationInfo.h           |  1 +
+ .../MtProtoKit/MTNetworkUsageManager.h        |  1 +
+ .../MtProtoKit/MTOutgoingMessage.h            |  1 +
+ .../PublicHeaders/MtProtoKit/MTOutputStream.h |  5 +++++
+ .../MtProtoKit/MTPreparedMessage.h            |  1 +
+ .../PublicHeaders/MtProtoKit/MTProto.h        |  1 +
+ .../PublicHeaders/MtProtoKit/MTProtoEngine.h  |  3 ---
+ .../MtProtoKit/MTProtoInstance.h              |  3 ---
+ .../MtProtoKit/MTProtoPersistenceInterface.h  |  3 ---
+ .../MtProtoKit/MTProxyConnectivity.h          |  1 +
+ .../PublicHeaders/MtProtoKit/MTQueue.h        |  1 +
+ .../PublicHeaders/MtProtoKit/MTQuickAck.h     |  1 +
+ .../PublicHeaders/MtProtoKit/MTRequest.h      | 20 ++++++++++++-------
+ .../MtProtoKit/MTRequestContext.h             |  1 +
+ .../MtProtoKit/MTRequestErrorContext.h        |  1 +
+ .../MtProtoKit/MTRequestMessageService.h      |  1 +
+ .../MtProtoKit/MTResendMessageService.h       |  1 +
+ .../PublicHeaders/MtProtoKit/MTRpcError.h     |  1 +
+ .../MtProtoKit/MTSerialization.h              |  1 +
+ .../PublicHeaders/MtProtoKit/MTSessionInfo.h  |  1 +
+ .../PublicHeaders/MtProtoKit/MTSignal.h       |  2 +-
+ .../PublicHeaders/MtProtoKit/MTSubscriber.h   |  3 ++-
+ .../PublicHeaders/MtProtoKit/MTTcpTransport.h |  1 +
+ .../PublicHeaders/MtProtoKit/MTTime.h         |  1 +
+ .../MtProtoKit/MTTimeFixContext.h             |  1 +
+ .../MtProtoKit/MTTimeSyncMessageService.h     |  1 +
+ .../PublicHeaders/MtProtoKit/MTTimer.h        |  1 +
+ .../PublicHeaders/MtProtoKit/MTTransport.h    |  1 +
+ .../MtProtoKit/MTTransportScheme.h            |  1 +
+ .../MtProtoKit/MTTransportTransaction.h       |  1 +
+ 61 files changed, 84 insertions(+), 22 deletions(-)
+
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTApiEnvironment.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTApiEnvironment.h
+index 46d6ddde4e..150690ccee 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTApiEnvironment.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTApiEnvironment.h
+@@ -1,5 +1,6 @@
+ #import <Foundation/Foundation.h>
+ 
++
+ @interface MTProxySecret : NSObject <NSCoding>
+ 
+ @property (nonatomic, strong, readonly) NSData * _Nonnull secret;
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTAtomic.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTAtomic.h
+index e25689ae0a..6fb98a63e6 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTAtomic.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTAtomic.h
+@@ -1,5 +1,6 @@
+ #import <Foundation/Foundation.h>
+ 
++
+ @interface MTAtomic : NSObject
+ 
+ - (instancetype)initWithValue:(id)value;
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTBackupAddressSignals.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTBackupAddressSignals.h
+index 063887fa48..3d39bf2f73 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTBackupAddressSignals.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTBackupAddressSignals.h
+@@ -1,5 +1,6 @@
+ #import <Foundation/Foundation.h>
+ 
++
+ @class MTSignal;
+ @class MTContext;
+ 
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTBag.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTBag.h
+index 1c4c8c343d..51fdce359e 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTBag.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTBag.h
+@@ -1,5 +1,6 @@
+ #import <Foundation/Foundation.h>
+ 
++
+ @interface MTBag : NSObject
+ 
+ - (NSInteger)addItem:(id)item;
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTBindKeyMessageService.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTBindKeyMessageService.h
+index 26f6861622..6708a7126c 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTBindKeyMessageService.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTBindKeyMessageService.h
+@@ -2,6 +2,7 @@
+ #import <MtProtoKit/MTMessageService.h>
+ #import <MtProtoKit/MTDatacenterAuthInfo.h>
+ 
++
+ @class MTRpcError;
+ @class MTProto;
+ 
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTContext.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTContext.h
+index 9a5237e9a5..f4c629b95f 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTContext.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTContext.h
+@@ -5,6 +5,7 @@
+ 
+ #import <EncryptionProvider/EncryptionProvider.h>
+ 
++
+ @class MTDatacenterAddress;
+ @class MTDatacenterAddressSet;
+ @protocol MTSerialization;
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTDatacenterAddress.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTDatacenterAddress.h
+index 85d5b4ac0a..ba64dbb004 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTDatacenterAddress.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTDatacenterAddress.h
+@@ -2,6 +2,7 @@
+ 
+ #import <Foundation/Foundation.h>
+ 
++
+ @interface MTDatacenterAddress : NSObject <NSCoding, NSCopying>
+ 
+ @property (nonatomic, strong, readonly) NSString * _Nullable host;
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTDatacenterAddressListData.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTDatacenterAddressListData.h
+index cd80456e03..1f5f4b5b04 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTDatacenterAddressListData.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTDatacenterAddressListData.h
+@@ -1,5 +1,6 @@
+ #import <Foundation/Foundation.h>
+ 
++
+ @interface MTDatacenterAddressListData : NSObject
+ 
+ @property (nonatomic, strong, readonly) NSDictionary<NSNumber *, NSArray *> *addressList;
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTDatacenterAddressSet.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTDatacenterAddressSet.h
+index bc7e71893a..b50b36d73e 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTDatacenterAddressSet.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTDatacenterAddressSet.h
+@@ -2,6 +2,7 @@
+ 
+ #import <Foundation/Foundation.h>
+ 
++
+ @class MTDatacenterAddress;
+ 
+ @interface MTDatacenterAddressSet : NSObject <NSCoding>
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTDatacenterAuthAction.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTDatacenterAuthAction.h
+index 11c85b57ef..adc22a32e6 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTDatacenterAuthAction.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTDatacenterAuthAction.h
+@@ -3,6 +3,7 @@
+ #import <MtProtoKit/MTDatacenterAuthInfo.h>
+ 
+ 
++
+ @class MTContext;
+ 
+ @interface MTDatacenterAuthAction : NSObject
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTDatacenterAuthInfo.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTDatacenterAuthInfo.h
+index cdcb4e86a0..68fb15bb51 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTDatacenterAuthInfo.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTDatacenterAuthInfo.h
+@@ -1,5 +1,6 @@
+ #import <Foundation/Foundation.h>
+ 
++
+ @interface MTDatacenterAuthKey: NSObject <NSCoding>
+ 
+ @property (nonatomic, strong, readonly) NSData *authKey;
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTDatacenterAuthMessageService.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTDatacenterAuthMessageService.h
+index 2e230bce57..52416851ab 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTDatacenterAuthMessageService.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTDatacenterAuthMessageService.h
+@@ -2,6 +2,7 @@
+ 
+ #import <MtProtoKit/MTMessageService.h>
+ 
++
+ @class MTContext;
+ @class MTDatacenterAuthMessageService;
+ @class MTDatacenterAuthKey;
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTDatacenterSaltInfo.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTDatacenterSaltInfo.h
+index c47d63472b..34eb9c1998 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTDatacenterSaltInfo.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTDatacenterSaltInfo.h
+@@ -2,6 +2,7 @@
+ 
+ #import <Foundation/Foundation.h>
+ 
++
+ @interface MTDatacenterSaltInfo : NSObject <NSCoding>
+ 
+ @property (nonatomic, readonly) int64_t salt;
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTDatacenterTransferAuthAction.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTDatacenterTransferAuthAction.h
+index 0896794347..acbf11782b 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTDatacenterTransferAuthAction.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTDatacenterTransferAuthAction.h
+@@ -2,6 +2,7 @@
+ 
+ #import <Foundation/Foundation.h>
+ 
++
+ @class MTContext;
+ 
+ @class MTDatacenterTransferAuthAction;
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTDatacenterVerificationData.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTDatacenterVerificationData.h
+index 7a6a981c87..fa8c7c5f8a 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTDatacenterVerificationData.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTDatacenterVerificationData.h
+@@ -1,5 +1,6 @@
+ #import <Foundation/Foundation.h>
+ 
++
+ @interface MTDatacenterVerificationData : NSObject
+ 
+ @property (nonatomic, readonly) NSInteger datacenterId;
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTDisposable.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTDisposable.h
+index 07d9f91940..63856dc948 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTDisposable.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTDisposable.h
+@@ -1,5 +1,6 @@
+ #import <Foundation/Foundation.h>
+ 
++
+ @protocol MTDisposable <NSObject>
+ 
+ - (void)dispose;
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTDropResponseContext.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTDropResponseContext.h
+index c0650f55f6..909cc29c97 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTDropResponseContext.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTDropResponseContext.h
+@@ -2,6 +2,7 @@
+ 
+ #import <Foundation/Foundation.h>
+ 
++
+ @interface MTDropResponseContext : NSObject
+ 
+ @property (nonatomic, readonly) int64_t dropMessageId;
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTEncryption.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTEncryption.h
+index 8eb3248b44..074365f889 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTEncryption.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTEncryption.h
+@@ -5,6 +5,7 @@
+ 
+ #import <EncryptionProvider/EncryptionProvider.h>
+ 
++
+ #ifdef __cplusplus
+ extern "C" {
+ #endif
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTExportedAuthorizationData.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTExportedAuthorizationData.h
+index 5570ba9f47..4fbb151676 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTExportedAuthorizationData.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTExportedAuthorizationData.h
+@@ -1,5 +1,6 @@
+ #import <Foundation/Foundation.h>
+ 
++
+ @interface MTExportedAuthorizationData : NSObject
+ 
+ @property (nonatomic, strong, readonly) NSData *authorizationBytes;
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTExternalActions.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTExternalActions.h
+index 7d7dec2e3c..b8f0ade28c 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTExternalActions.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTExternalActions.h
+@@ -5,6 +5,7 @@
+ #import <MtProtoKit/MTDatacenterAuthInfo.h>
+ #import <MtProtoKit/MTDatacenterTransferAuthAction.h>
+ 
++
+ @class MTRpcError;
+ 
+ // Who makes MTContext's auth keys and transfers its authorizations.
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTGzip.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTGzip.h
+index 3bff5fa8bc..3f57a09e8e 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTGzip.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTGzip.h
+@@ -1,6 +1,5 @@
+ #import <Foundation/Foundation.h>
+ 
+-NS_ASSUME_NONNULL_BEGIN
+ 
+ // Sanity ceiling applied by +decompress: so untrusted input cannot inflate
+ // without bound. Callers that know their own limit pass it explicitly.
+@@ -16,5 +15,3 @@ FOUNDATION_EXTERN NSUInteger const MTGzipDefaultMaxDecompressedLength;
+ + (NSData * _Nullable)compress:(NSData *)data;
+ 
+ @end
+-
+-NS_ASSUME_NONNULL_END
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTHttpRequestOperation.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTHttpRequestOperation.h
+index 14d8600859..ed2d4292ac 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTHttpRequestOperation.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTHttpRequestOperation.h
+@@ -1,5 +1,6 @@
+ #import <Foundation/Foundation.h>
+ 
++
+ @class MTSignal;
+ 
+ @interface MTHttpResponse : NSObject
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTIncomingMessage.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTIncomingMessage.h
+index e319fe3846..720bcc56f4 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTIncomingMessage.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTIncomingMessage.h
+@@ -2,6 +2,7 @@
+ 
+ #import <Foundation/Foundation.h>
+ 
++
+ @interface MTIncomingMessage : NSObject
+ 
+ @property (nonatomic, readonly) int64_t messageId;
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTInputStream.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTInputStream.h
+index d8d8f35e7a..f01848f7fa 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTInputStream.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTInputStream.h
+@@ -2,6 +2,7 @@
+ 
+ #import <Foundation/Foundation.h>
+ 
++
+ @interface MTInputStream : NSObject
+ 
+ - (instancetype)initWithData:(NSData *)data;
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTInternalId.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTInternalId.h
+index c4bd71d902..11eeb73388 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTInternalId.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTInternalId.h
+@@ -5,6 +5,7 @@
+ 
+ #import <os/lock.h>
+ 
++
+ #define MTInternalId(name) MT##name##InternalId
+ 
+ #define MTInternalIdClass(name) \
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTKeychain.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTKeychain.h
+index 1402fb9127..38fbf7ee99 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTKeychain.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTKeychain.h
+@@ -2,11 +2,19 @@
+ 
+ #import <Foundation/Foundation.h>
+ 
++NS_ASSUME_NONNULL_BEGIN
++
+ @protocol MTKeychain <NSObject>
+ 
+ - (void)setObject:(id)object forKey:(NSString *)aKey group:(NSString *)group;
++#if TGBUILD
++/* Linux Swift driver cannot bridge a NSDictionary requirement to Dictionary (no Apple
++   apinotes); expose the unbridged id form there. Same object flows at runtime. */
++- (nullable id)dictionaryForKey:(NSString *)aKey group:(NSString *)group;
++#else
+ - (NSDictionary *)dictionaryForKey:(NSString *)aKey group:(NSString *)group;
+-- (NSNumber *)numberForKey:(NSString *)aKey group:(NSString *)group;
++#endif
++- (nullable NSNumber *)numberForKey:(NSString *)aKey group:(NSString *)group;
+ - (void)removeObjectForKey:(NSString *)aKey group:(NSString *)group;
+ 
+ @end
+@@ -16,3 +24,5 @@
+ + (id)unarchiveDeprecatedWithData:(NSData *)data;
+ 
+ @end
++
++NS_ASSUME_NONNULL_END
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTLogging.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTLogging.h
+index d6eea88e33..396a31eabe 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTLogging.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTLogging.h
+@@ -5,6 +5,7 @@
+ 
+ #import <Foundation/Foundation.h>
+ 
++
+ #ifdef __cplusplus
+ extern "C" {
+ #endif
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTMessageEncryptionKey.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTMessageEncryptionKey.h
+index f9c76ae0e8..153d8b842c 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTMessageEncryptionKey.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTMessageEncryptionKey.h
+@@ -2,6 +2,7 @@
+ 
+ #import <Foundation/Foundation.h>
+ 
++
+ @interface MTMessageEncryptionKey : NSObject
+ 
+ @property (nonatomic, strong, readonly) NSData *key;
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTMessageService.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTMessageService.h
+index 1dd9fdd4f8..9a87d903ba 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTMessageService.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTMessageService.h
+@@ -3,6 +3,7 @@
+ #import <Foundation/Foundation.h>
+ #import <MtProtoKit/MTDatacenterAuthInfo.h>
+ 
++
+ @class MTProto;
+ @class MTIncomingMessage;
+ @class MTMessageTransaction;
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTMessageTransaction.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTMessageTransaction.h
+index 5aa700b2a2..8893466738 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTMessageTransaction.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTMessageTransaction.h
+@@ -2,6 +2,7 @@
+ 
+ #import <Foundation/Foundation.h>
+ 
++
+ @interface MTMessageTransaction : NSObject
+ 
+ @property (nonatomic, strong, readonly) id internalId;
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTNetworkAvailability.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTNetworkAvailability.h
+index e99de13236..c432e6fb76 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTNetworkAvailability.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTNetworkAvailability.h
+@@ -2,6 +2,7 @@
+ 
+ #import <Foundation/Foundation.h>
+ 
++
+ @class MTNetworkAvailability;
+ 
+ @protocol MTNetworkAvailabilityDelegate <NSObject>
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTNetworkUsageCalculationInfo.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTNetworkUsageCalculationInfo.h
+index ba3bce666f..cefa0b51e8 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTNetworkUsageCalculationInfo.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTNetworkUsageCalculationInfo.h
+@@ -1,5 +1,6 @@
+ #import <Foundation/Foundation.h>
+ 
++
+ @class MTQueue;
+ 
+ @interface MTNetworkUsageCalculationInfo : NSObject
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTNetworkUsageManager.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTNetworkUsageManager.h
+index ff3ba207a9..6221baddea 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTNetworkUsageManager.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTNetworkUsageManager.h
+@@ -1,5 +1,6 @@
+ #import <Foundation/Foundation.h>
+ 
++
+ @class MTSignal;
+ @class MTNetworkUsageCalculationInfo;
+ 
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTOutgoingMessage.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTOutgoingMessage.h
+index b84359a49e..22a31ce5d1 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTOutgoingMessage.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTOutgoingMessage.h
+@@ -2,6 +2,7 @@
+ 
+ #import <Foundation/Foundation.h>
+ 
++
+ @interface MTOutgoingMessage : NSObject
+ 
+ @property (nonatomic, strong, readonly) id internalId;
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTOutputStream.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTOutputStream.h
+index 0e416955fa..065bf716fd 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTOutputStream.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTOutputStream.h
+@@ -2,8 +2,11 @@
+ 
+ #import <Foundation/Foundation.h>
+ 
++NS_ASSUME_NONNULL_BEGIN
++
+ @interface MTOutputStream : NSObject
+ 
++- (instancetype)init;
+ - (NSOutputStream *)wrappedOutputStream;
+ 
+ - (NSData *)currentBytes;
+@@ -17,3 +20,5 @@
+ - (void)writeBytes:(NSData *)data;
+ 
+ @end
++
++NS_ASSUME_NONNULL_END
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTPreparedMessage.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTPreparedMessage.h
+index abeb65062b..dca77bd5aa 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTPreparedMessage.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTPreparedMessage.h
+@@ -2,6 +2,7 @@
+ 
+ #import <Foundation/Foundation.h>
+ 
++
+ @interface MTPreparedMessage : NSObject
+ 
+ @property (nonatomic, strong, readonly) id internalId;
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTProto.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTProto.h
+index 899d8a951c..13dfa7478e 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTProto.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTProto.h
+@@ -2,6 +2,7 @@
+ 
+ #import <Foundation/Foundation.h>
+ 
++
+ @protocol MTMessageService;
+ @class MTQueue;
+ @class MTContext;
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTProtoEngine.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTProtoEngine.h
+index a5e507e8de..eb5fd34fc0 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTProtoEngine.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTProtoEngine.h
+@@ -1,7 +1,6 @@
+ #import <Foundation/Foundation.h>
+ #import <MtProtoKit/MTProtoPersistenceInterface.h>
+ 
+-NS_ASSUME_NONNULL_BEGIN
+ 
+ @interface MTProtoEngine : NSObject
+ 
+@@ -9,5 +8,3 @@ NS_ASSUME_NONNULL_BEGIN
+ 
+ @end
+ 
+-NS_ASSUME_NONNULL_END
+-
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTProtoInstance.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTProtoInstance.h
+index 91a58939e5..5f747acd55 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTProtoInstance.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTProtoInstance.h
+@@ -1,12 +1,9 @@
+ #import <Foundation/Foundation.h>
+ #import <MtProtoKit/MTProtoEngine.h>
+ 
+-NS_ASSUME_NONNULL_BEGIN
+ 
+ @interface MTProtoInstance : NSObject
+ 
+ - (instancetype)initWithEngine:(MTProtoEngine *)engine;
+ 
+ @end
+-
+-NS_ASSUME_NONNULL_END
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTProtoPersistenceInterface.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTProtoPersistenceInterface.h
+index ecabfee72f..dbac1ea2c8 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTProtoPersistenceInterface.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTProtoPersistenceInterface.h
+@@ -2,7 +2,6 @@
+ 
+ @class MTSignal;
+ 
+-NS_ASSUME_NONNULL_BEGIN
+ 
+ @protocol MTProtoPersistenceInterface <NSObject>
+ 
+@@ -10,5 +9,3 @@ NS_ASSUME_NONNULL_BEGIN
+ - (void)set:(NSData *)key value:(NSData *)value;
+ 
+ @end
+-
+-NS_ASSUME_NONNULL_END
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTProxyConnectivity.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTProxyConnectivity.h
+index 05793bcedb..6ea9fec8b1 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTProxyConnectivity.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTProxyConnectivity.h
+@@ -1,5 +1,6 @@
+ #import <Foundation/Foundation.h>
+ 
++
+ @class MTSignal;
+ @class MTContext;
+ @class MTSocksProxySettings;
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTQueue.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTQueue.h
+index 95fde2cc7c..4192090e72 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTQueue.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTQueue.h
+@@ -2,6 +2,7 @@
+ 
+ #import <Foundation/Foundation.h>
+ 
++
+ @interface MTQueue : NSObject
+ 
+ - (instancetype)initWithName:(const char *)name;
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTQuickAck.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTQuickAck.h
+index 85feff868f..308dd869f4 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTQuickAck.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTQuickAck.h
+@@ -1,5 +1,6 @@
+ #import <Foundation/Foundation.h>
+ 
++
+ // MTProto quick acknowledgements (https://core.telegram.org/mtproto/mtproto-transports#quick-ack).
+ //
+ // The token is the first 32 bits of msg_key_large = SHA256(auth_key[88+x..+32] ‖ plaintext),
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTRequest.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTRequest.h
+index beb5276d0d..2553d44670 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTRequest.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTRequest.h
+@@ -2,6 +2,8 @@
+ 
+ #import <Foundation/Foundation.h>
+ 
++NS_ASSUME_NONNULL_BEGIN
++
+ @class MTRequestContext;
+ @class MTRequestErrorContext;
+ @class MTRpcError;
+@@ -27,8 +29,8 @@
+ 
+ @property (nonatomic, strong) NSArray *decorators;
+ @property (nonatomic) int32_t transactionResetStateVersion;
+-@property (nonatomic, strong) MTRequestContext *requestContext;
+-@property (nonatomic, strong) MTRequestErrorContext *errorContext;
++@property (nonatomic, strong, nullable) MTRequestContext *requestContext;
++@property (nonatomic, strong, nullable) MTRequestErrorContext *errorContext;
+ /// The request went out under a message id and the server may have run it; cleared when the server
+ /// answers it with an error after which it goes again. Kept when its message id is forgotten (a
+ /// transaction that may have failed, a session change), for a handover (`handOverRequests:`).
+@@ -39,17 +41,21 @@
+ @property (nonatomic) bool needsTimeoutTimer;
+ @property (nonatomic) int32_t expectedResponseSize;
+ 
+-@property (nonatomic, copy) void (^completed)(id result, MTRequestResponseInfo *info, MTRpcError *error);
++@property (nonatomic, copy) void (^completed)(id _Nullable result, MTRequestResponseInfo *info, MTRpcError * _Nullable error);
+ @property (nonatomic, copy) void (^progressUpdated)(float progress, NSUInteger packetLength);
+ @property (nonatomic, copy) void (^acknowledgementReceived)();
+ 
+-@property (nonatomic, copy) bool (^shouldContinueExecutionWithErrorContext)(MTRequestErrorContext *errorContext);
+-@property (nonatomic, copy) bool (^shouldDependOnRequest)(MTRequest *anotherRequest);
++@property (nonatomic, copy) bool (^shouldContinueExecutionWithErrorContext)(MTRequestErrorContext * _Nullable errorContext);
++@property (nonatomic, copy) bool (^shouldDependOnRequest)(MTRequest * _Nullable anotherRequest);
+ 
+ - (bool)scanNeedsTimeoutTimer __attribute__((objc_direct));
+-- (MTRequestErrorContext *)scanErrorContext __attribute__((objc_direct));
++- (nullable MTRequestErrorContext *)scanErrorContext __attribute__((objc_direct));
+ - (id)scanInternalId __attribute__((objc_direct));
+ 
+-- (void)setPayload:(NSData *)payload metadata:(id)metadata shortMetadata:(id)shortMetadata responseParser:(id (^)(NSData *))responseParser;
++/* tgbuild: nullable result — the parser legitimately returns nil for unparseable data
++   (unannotated id imports as non-optional Any on the Linux Swift 6.4 importer). */
++- (void)setPayload:(NSData *)payload metadata:(nullable id)metadata shortMetadata:(nullable id)shortMetadata responseParser:(nullable id _Nullable (^)(NSData * _Nullable))responseParser;
+ 
+ @end
++
++NS_ASSUME_NONNULL_END
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTRequestContext.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTRequestContext.h
+index 0ad171fe57..8eee21f61a 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTRequestContext.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTRequestContext.h
+@@ -1,5 +1,6 @@
+ #import <Foundation/Foundation.h>
+ 
++
+ @interface MTRequestContext : NSObject
+ 
+ @property (nonatomic, readonly) int64_t messageId;
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTRequestErrorContext.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTRequestErrorContext.h
+index 933828ad89..67a57b4ace 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTRequestErrorContext.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTRequestErrorContext.h
+@@ -1,5 +1,6 @@
+ #import <Foundation/Foundation.h>
+ 
++
+ @protocol MTDisposable;
+ 
+ @interface MTRequestPendingVerificationData : NSObject
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTRequestMessageService.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTRequestMessageService.h
+index 161c12f120..5bc9e6ac2f 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTRequestMessageService.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTRequestMessageService.h
+@@ -2,6 +2,7 @@
+ 
+ #import <MtProtoKit/MTMessageService.h>
+ 
++
+ @class MTContext;
+ @class MTRequest;
+ @class MTApiEnvironment;
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTResendMessageService.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTResendMessageService.h
+index 05c28b4555..c7581b8a54 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTResendMessageService.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTResendMessageService.h
+@@ -2,6 +2,7 @@
+ 
+ #import <MtProtoKit/MTMessageService.h>
+ 
++
+ @class MTResendMessageService;
+ 
+ @protocol MTResendMessageServiceDelegate <NSObject>
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTRpcError.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTRpcError.h
+index 7431042bbf..7fc594562a 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTRpcError.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTRpcError.h
+@@ -1,5 +1,6 @@
+ #import <Foundation/Foundation.h>
+ 
++
+ @interface MTRpcError : NSObject
+ 
+ @property (nonatomic, readonly) int32_t errorCode;
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTSerialization.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTSerialization.h
+index d08cd0faf0..9d594df6e8 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTSerialization.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTSerialization.h
+@@ -6,6 +6,7 @@
+ #import <MtProtoKit/MTDatacenterAddressListData.h>
+ #import <MtProtoKit/MTDatacenterVerificationData.h>
+ 
++
+ typedef MTExportedAuthorizationData *(^MTExportAuthorizationResponseParser)(NSData *);
+ typedef MTDatacenterAddressListData *(^MTRequestDatacenterAddressListParser)(NSData *);
+ typedef MTDatacenterVerificationData *(^MTDatacenterVerificationDataParser)(NSData *);
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTSessionInfo.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTSessionInfo.h
+index a3a3f2f262..530c5be64d 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTSessionInfo.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTSessionInfo.h
+@@ -2,6 +2,7 @@
+ 
+ #import <Foundation/Foundation.h>
+ 
++
+ @class MTContext;
+ 
+ @interface MTSessionInfo : NSObject
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTSignal.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTSignal.h
+index d00926cfd4..58d9e71c45 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTSignal.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTSignal.h
+@@ -1,7 +1,7 @@
+ #import <Foundation/Foundation.h>
+-
+ #import "MTSubscriber.h"
+ 
++
+ @class MTQueue;
+ 
+ @interface MTSignal : NSObject
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTSubscriber.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTSubscriber.h
+index 3997534632..e7118b7c7f 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTSubscriber.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTSubscriber.h
+@@ -1,7 +1,8 @@
+ #import <Foundation/Foundation.h>
+-
+ #import "MTDisposable.h"
+ 
++
++
+ @interface MTSubscriber : NSObject <MTDisposable>
+ {
+ }
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTTcpTransport.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTTcpTransport.h
+index e75e97ad14..2b9bad278d 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTTcpTransport.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTTcpTransport.h
+@@ -1,5 +1,6 @@
+ #import <MtProtoKit/MTTransport.h>
+ 
++
+ @interface MTTcpTransport : MTTransport
+ 
+ @end
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTTime.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTTime.h
+index 0d6f0258f6..0a8eb3187f 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTTime.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTTime.h
+@@ -9,6 +9,7 @@ extern "C" {
+     
+ #import <Foundation/Foundation.h>
+ 
++
+ CFAbsoluteTime MTAbsoluteSystemTime();
+     
+ #ifdef __cplusplus
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTTimeFixContext.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTTimeFixContext.h
+index b46343370c..2990cd62c6 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTTimeFixContext.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTTimeFixContext.h
+@@ -1,5 +1,6 @@
+ #import <Foundation/Foundation.h>
+ 
++
+ @interface MTTimeFixContext : NSObject
+ 
+ @property (nonatomic, readonly) int64_t messageId;
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTTimeSyncMessageService.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTTimeSyncMessageService.h
+index 287185d6b6..44f5b72815 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTTimeSyncMessageService.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTTimeSyncMessageService.h
+@@ -1,6 +1,7 @@
+ 
+ #import <MtProtoKit/MTMessageService.h>
+ 
++
+ @class MTTimeSyncMessageService;
+ 
+ @protocol MTTimeSyncMessageServiceDelegate <NSObject>
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTTimer.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTTimer.h
+index 5b2f24c68b..07c091271d 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTTimer.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTTimer.h
+@@ -2,6 +2,7 @@
+ 
+ #import <Foundation/Foundation.h>
+ 
++
+ @interface MTTimer : NSObject
+ 
+ @property (nonatomic) NSTimeInterval timeoutDate;
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTTransport.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTTransport.h
+index 258a908a14..ca085df539 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTTransport.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTTransport.h
+@@ -15,6 +15,7 @@
+ #import <MtProtoKit/MTMessageService.h>
+ 
+ 
++
+ @protocol MTTransportDelegate <NSObject>
+ 
+ @optional
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTTransportScheme.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTTransportScheme.h
+index 46b82fd544..4d4bde2314 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTTransportScheme.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTTransportScheme.h
+@@ -2,6 +2,7 @@
+ 
+ #import <Foundation/Foundation.h>
+ 
++
+ @class MTContext;
+ @class MTTransport;
+ @class MTDatacenterAddress;
+diff --git a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTTransportTransaction.h b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTTransportTransaction.h
+index c2739c9296..612c72ebc7 100644
+--- a/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTTransportTransaction.h
++++ b/submodules/MtProtoKit/PublicHeaders/MtProtoKit/MTTransportTransaction.h
+@@ -2,6 +2,7 @@
+ 
+ #import <Foundation/Foundation.h>
+ 
++
+ @interface MTTransportTransaction : NSObject
+ 
+ @property (nonatomic, copy, readonly) void (^completion)(bool success, id transactionId);
+-- 
+2.43.0
+

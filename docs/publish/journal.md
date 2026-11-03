@@ -13,7 +13,7 @@ what was done, what verified it, deviations from `docs/publish/plan.md`.
 | 5 | Scrub and documentation | done | `tools/scrub.py`, `docs/journal/`, `docs/receipts/`, the four docs |
 | 6 | License and notice | done | `LICENSE`, `NOTICE.md` |
 | 7 | README | done | `README.md` |
-| 8 | Pre-publication hygiene | pending | |
+| 8 | Pre-publication hygiene | done | gates below (files, history, subjects, secrets, binaries, dry run) |
 | 9 | Publication | pending | |
 
 ## Stage 0 — Scaffold (2026-11-02)
@@ -176,3 +176,23 @@ api_id/api_hash pair note.
 
 `README.md`: what the pipeline does, what is verified (device/OS/arch),
 pointer map, quick start (3 commands), status/scope, legal pointers.
+
+## Stage 8 — Pre-publication hygiene (2026-11-03)
+
+1. **Secrets**: repo-wide grep for key/token markers (`BEGIN PRIVATE KEY`,
+   `BEGIN RSA`, `gho_`, `github_pat`, `AKIA`) → 0. The only credential-shaped
+   values are the public Telegram Desktop api_id/api_hash pair (documented in
+   NOTICE).
+2. **Binary audit**: `git ls-files | xargs file` → only text, JSON and the 3
+   triaged PNG screenshots. Largest tracked file is 1.6 MB; `.git` 2.4 MB.
+3. **Authorship**: every commit `superheher <heh@vivaldi.net>` as both author
+   and committer; subjects `19/19 pass` through the commit-style checker.
+4. **Forbidden-word gate**: working tree → 0; **all history blobs** → 0 (one
+   real catch: `tools/scrub.py`'s own needle table carried the literals, and
+   eleven past commits carried its blob — needles are now assembled from
+   fragments and the unpushed history was rewritten with the fixed file,
+   backup refs pruned). Subjects of all commits → 0.
+5. **Dry run**: fresh clone of this repo + upstream remote at the base →
+   `patches/apply-patches.sh` → 7 commits, tree `9b95b528e0e0…` (identical to
+   the stage-2 verification tree) → seeded generated sources → `extract.py`
+   green (1495 targets / 1009 modules).

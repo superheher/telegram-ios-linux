@@ -196,3 +196,16 @@ pointer map, quick start (3 commands), status/scope, legal pointers.
    `patches/apply-patches.sh` → 7 commits, tree `9b95b528e0e0…` (identical to
    the stage-2 verification tree) → seeded generated sources → `extract.py`
    green (1495 targets / 1009 modules).
+
+## Stage 9 — Publication (2026-11-03, private)
+
+- `gh repo create superheher/telegram-ios-linux --private --source . --push`:
+  20 commits on `origin/master`, visibility PRIVATE.
+- Post-push check on a fresh GitHub clone: subjects 20/20 pass, forbidden
+  words absent from the tree and every history blob, LICENSE / NOTICE /
+  README / build-guide / apply-patches.sh all present.
+
+Open step, user-gated by the plan: making the repository public
+(`gh repo edit superheher/telegram-ios-linux --visibility public`) — only on
+the user's explicit confirmation after their review of README, build-guide
+and the screenshot triage.

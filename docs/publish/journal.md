@@ -209,3 +209,19 @@ Open step, user-gated by the plan: making the repository public
 (`gh repo edit superheher/telegram-ios-linux --visibility public`) — only on
 the user's explicit confirmation after their review of README, build-guide
 and the screenshot triage.
+
+## Stage 9 — Publication complete (2026-11-03)
+
+The user reviewed the private repository and confirmed publication.
+`gh repo edit superheher/telegram-ios-linux --visibility public` (with the
+visibility-change confirmation flag) → PUBLIC.
+
+Post-publication gate on a fresh anonymous clone: subjects 21/21 pass,
+authorship `superheher <heh@vivaldi.net>` on every commit, forbidden words
+absent from the tree and every history blob, no secrets, no binaries beyond
+the three triaged screenshots, LICENSE / NOTICE / README / build-guide /
+architecture / status / traps / apply-patches.sh / base-commit all present.
+
+The optional follow-ups of the plan remain open as separate work (not
+blocking): a `v0.1` tag at this point, and upstream PRs for the host fixes
+(x86_64 selects in webrtc/wamr/openh264, libjxl BUILD rename).

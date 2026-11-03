@@ -86,10 +86,23 @@ journals produced the 8-patch series; full details and per-file decisions in
   sources + copied caches with preserved mtimes):
   - `extract.py`: green — 1495 targets, 1009 modules, ~53 s;
   - `swift.py //submodules/TelegramUI:TelegramUI --min 16.0 --jobs 3`: green —
-    the whole ladder including TelegramCore (718 files, the known
-    clang-importer source-order retry) and TelegramUI; mostly cache hits, the
-    modules containing patched sources recompiled;
-  - `link.py --app`: recorded below with the run's output.
+    final pass `cached=611, empty=1, ok=116`, **0 failures**, TelegramUI ok;
+    TelegramCore (718 files) recompiled through its known clang-importer
+    source-order retry; every module touching a patched source recompiled;
+  - `link.py --app`: green — TelegramUI.framework 394.6 MB (24 loads weak,
+    2810 system refs weak), app binary Mach-O arm64
+    (`NOUNDEFS|DYLDLINK|TWOLEVEL|PIE`), Telegram.app assembled with all 23
+    resource bundles, zipped to `Telegram.ipa` (146 MB).
+
+  Two findings during the run, both fixed in this repository's copies:
+  - the wallet-engine FFI needs its generated C header + modulemap beside the
+    Swift file (`tools/generated/wallet-engine/`, build-guide §2 updated);
+  - an interrupted driver leaves a stale shared clang module cache whose ghost
+    PCM state fails unrelated modules ("missing required module 'AppBundle'"
+    cascade that a clean-cache rerun clears) — recorded in `docs/traps.md`.
+  - (Run hygiene, not a repo defect: two concurrent driver passes shared the
+    caches and produced mixed results; all conclusions above come from the
+    final single pass with clean caches.)
 
 Deviation from plan: the plan expected the series to come from
 "base + 11 feature commits − features"; in reality the build adaptation was

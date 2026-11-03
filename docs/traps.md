@@ -30,6 +30,14 @@ Every entry cost a session somewhere. The load-bearing ones first.
 - **Switching `--min` orphans the entire cache** (the value is in the key).
 - **Duplicate `-Xcc -fmodules-cache-path`: the FIRST wins.** Probe scripts that
   append a second one write nothing.
+- **An interrupted driver leaves a stale shared clang module cache** whose
+  ghost PCM state fails unrelated modules (a "missing required module 'X'"
+  cascade across modules that never touched X). `rm -rf
+  build-input/swift/clang-cache` and rerun — the swift-cache products are
+  fine, only the clang cache poisons.
+- **Never run two driver passes against the same `build-input/` at once** —
+  they race on the shared clang cache and the swift-cache directories; a
+  killed pass is exactly how the stale-PCM state above is produced.
 - **Per-invocation temp module caches are unusable at scale** — one tgcalls C++
   TU took minutes rebuilding libc++; objc.py shares one clang module cache
   (per-module lock files make it concurrency-safe).
